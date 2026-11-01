@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Эпицентр Арена Страйка</title>
+<link rel="stylesheet" href="menu.css">
+</head>
+<body>
+<div class="backdrop"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <img src="logo.png" alt="">
+    <div>
+      <div class="brand-name">ЭПИЦЕНТР</div>
+      <div class="brand-sub">Арена Страйка</div>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="home">Главная</button>
+    <button class="tab" data-tab="servers">Серверы</button>
+    <button class="tab" data-action="site">Сайт ↗</button>
+  </nav>
+  <div class="profile" id="profile"></div>
+</header>
+
+<main>
+  <section class="page active" id="page-home">
+    <article class="server-hero" id="hero">
+      <div class="hero-map" id="hero-map"><span id="hero-map-name">—</span></div>
+      <div class="hero-body">
+        <div class="hero-status"><span class="dot" id="hero-dot"></span><span id="hero-state">Опрашиваем сервер…</span></div>
+        <h1 id="hero-name">Эпицентр Арена Страйка 18+</h1>
+        <div class="hero-meta">
+          <span class="addr" id="hero-addr" title="Скопировать адрес"></span>
+        </div>
+        <div class="slots">
+          <div class="slots-text"><b id="hero-online">–</b> / <span id="hero-max">32</span> игроков</div>
+          <div class="bar"><div class="bar-fill" id="hero-bar"></div></div>
+        </div>
+        <button class="connect" id="connect">Подключиться</button>
+      </div>
+    </article>
+
+    <div class="home-grid">
+      <article class="card">
+        <h2>Сейчас на сервере</h2>
+        <ol class="players" id="players"><li class="muted">Загрузка…</li></ol>
+      </article>
+      <article class="card links">
+        <h2>Эпицентр</h2>
+        <button class="link" data-site="/">Главная сайта</button>
+        <button class="link" data-site="/shop">Магазин и привилегии</button>
+        <button class="link" data-site="/forum">Форум</button>
+        <button class="link" data-site="/stats">Статистика игроков</button>
+      </article>
+    </div>
+  </section>
+
+  <section class="page" id="page-servers">
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Название, карта или адрес сервера">
+      <div class="chips">
+        <button class="chip active" data-list="internet">Все серверы</button>
+        <button class="chip" data-list="favorites">Избранное</button>
+        <button class="chip" data-list="history">История</button>
+      </div>
+    </div>
+    <div class="list-head"><span>Сервер</span><span>Карта</span><span>Игроки</span><span></span></div>
+    <div class="list" id="list"></div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+<script src="menu.js"></script>
+</body>
+</html>
