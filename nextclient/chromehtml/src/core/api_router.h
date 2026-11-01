@@ -21,5 +21,7 @@ public:
 };
 
 ApiResult route_api(const ApiCall& call, const std::string& frame_url, const Domains& domains, GameApi& game);
+// Same, with the caller's trust already decided (the built-in menu is trusted too).
+ApiResult route_api(const ApiCall& call, bool trusted, GameApi& game);
 
 }  // namespace nc

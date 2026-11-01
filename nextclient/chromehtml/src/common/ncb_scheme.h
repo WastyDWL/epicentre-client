@@ -8,10 +8,14 @@ namespace nc {
 
 constexpr char kNcbScheme[] = "ncb";
 constexpr char kNcbApiHost[] = "api";
+constexpr char kNclScheme[] = "ncl";  // ncl://menu/ — the client's built-in main menu
+constexpr char kNclMenuHost[] = "menu";
 
 inline void register_ncb_scheme(CefRawPtr<CefSchemeRegistrar> registrar) {
     // Secure + CORS so https pages can call it (synchronous XHR and fetch).
     registrar->AddCustomScheme(kNcbScheme, CEF_SCHEME_OPTION_STANDARD | CEF_SCHEME_OPTION_SECURE |
+                                               CEF_SCHEME_OPTION_CORS_ENABLED | CEF_SCHEME_OPTION_FETCH_ENABLED);
+    registrar->AddCustomScheme(kNclScheme, CEF_SCHEME_OPTION_STANDARD | CEF_SCHEME_OPTION_SECURE |
                                                CEF_SCHEME_OPTION_CORS_ENABLED | CEF_SCHEME_OPTION_FETCH_ENABLED);
 }
 

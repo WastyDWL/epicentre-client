@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "common/valve_html.h"
+#include "core/api_registry.h"
 #include "core/api_scheme.h"
 #include "core/browser.h"
 #include "core/domains.h"
@@ -42,8 +43,9 @@ public:
     void remove(const void* key);
     void set_cookie(const char* host, const char* key, const char* value, const char* path, uint32_t expires);
     void set_frame_rate(int fps);
-    // A window.nextclient call from a page whose frame is at frame_url.
-    ApiResult handle_api(const ApiCall& call, const std::string& frame_url);
+    // A window.nextclient call from a page whose frame is at frame_url; `done` may run later.
+    void handle_api(const ApiCall& call, const std::string& frame_url, std::function<void(ApiResult)> done);
+    ncl::IBrowserApi& browser_api() { return api_; }
 
     MainThreadQueue& queue() { return queue_; }
 
@@ -52,6 +54,7 @@ private:
     Config config_;
     Domains domains_;
     GameBridge bridge_;
+    ApiRegistry api_;
     PanelRegistry panels_;
     unsigned frames_ = 0;
     int next_id_ = 1;

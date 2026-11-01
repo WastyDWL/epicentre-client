@@ -35,6 +35,7 @@ add_subdirectory("${CEF_LIBCEF_DLL_WRAPPER_PATH}" libcef_dll_wrapper)
 set(CHROMEHTML_CORE_SOURCES
         src/common/log.cpp
         src/common/rtti.cpp
+        src/core/api_registry.cpp
         src/core/api_router.cpp
         src/core/api_scheme.cpp
         src/core/browser.cpp
@@ -48,12 +49,14 @@ set(CHROMEHTML_CORE_SOURCES
         src/core/js_api.cpp
         src/core/keymap.cpp
         src/core/main_thread_queue.cpp
+        src/core/menu_files.cpp
+        src/core/menu_scheme.cpp
         src/core/navigation_gate.cpp
         src/core/vgui_panel.cpp
         src/core/view_math.cpp)
 
 add_library(chromehtml_core STATIC ${CHROMEHTML_CORE_SOURCES})
-target_include_directories(chromehtml_core PUBLIC src ${CEF_INCLUDE_PATH})
+target_include_directories(chromehtml_core PUBLIC src include ${CEF_INCLUDE_PATH})
 target_compile_features(chromehtml_core PUBLIC cxx_std_20)
 target_compile_definitions(chromehtml_core PUBLIC WIN32_LEAN_AND_MEAN NOMINMAX)
 target_link_libraries(chromehtml_core PUBLIC libcef_dll_wrapper ${CEF_LIB_RELEASE} delayimp)

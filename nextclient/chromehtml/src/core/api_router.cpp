@@ -16,9 +16,13 @@ bool secret_cvar(std::string name) {
 }  // namespace
 
 ApiResult route_api(const ApiCall& call, const std::string& frame_url, const Domains& domains, GameApi& game) {
+    return route_api(call, domains.is_accepted(frame_url), game);
+}
+
+ApiResult route_api(const ApiCall& call, bool trusted, GameApi& game) {
     const std::string& m = call.method;
     if (m == "exec" || m == "openOptionsDialog") {
-        if (!domains.is_accepted(frame_url)) return {403, "null"};
+        if (!trusted) return {403, "null"};
         if (m == "openOptionsDialog") return {501, "null"};  // needs GameUI internals NextClient keeps private
         game.client_cmd(call.arg);
         return {200, "true"};

@@ -5,6 +5,7 @@
 #include "common/log.h"
 #include "common/ncb_scheme.h"
 #include "core/api_router.h"
+#include "core/menu_scheme.h"
 #include "include/cef_app.h"
 #include "include/cef_cookie.h"
 #include "include/cef_version.h"
@@ -74,8 +75,10 @@ bool Engine::init(const EngineOptions& opts) {
     config_ = opts.config;
     register_api_scheme_handler();
     std::wstring game_dir = opts.mod_dir.substr(0, opts.mod_dir.find_last_of(L"\\/"));
+    register_menu_scheme_handler(game_dir + L"\\platform\\epicentre\\menu");
     if (!domains_.load(game_dir + L"\\platform\\accepted_domains.txt"))
         log("no platform\\accepted_domains.txt: privileged nextclient.* calls are denied");
+    api_.set_domains(&domains_);
     bridge_.attach();
     log("CEF %s initialized", CEF_VERSION);
     return true;
@@ -103,8 +106,8 @@ void Engine::shutdown() {
 void Engine::run_frame() {
     queue_.drain();
     if (!bridge_.attached() && ++frames_ % 120 == 0) bridge_.attach();
-    for (const GameEvent& ev : bridge_.poll()) {
-        std::string js = dispatch_script(ev.target, ev.type, ev.detail_json);
+    for (const GameEvent& ev : bridge_.poll()) api_.DispatchEvent(ev.target.c_str(), ev.type.c_str(), ev.detail_json.c_str());
+    for (const std::string& js : api_.take_scripts()) {
         for (auto& [key, b] : browsers_) {
             CefRefPtr<CefBrowser> cb = b->cef_browser();
             if (!cb) continue;
@@ -173,8 +176,8 @@ void Engine::set_cookie(const char* host, const char* key, const char* value, co
     CefCookieManager::GetGlobalManager(nullptr)->SetCookie(url, c, nullptr);
 }
 
-ApiResult Engine::handle_api(const ApiCall& call, const std::string& frame_url) {
-    return route_api(call, frame_url, domains_, bridge_);
+void Engine::handle_api(const ApiCall& call, const std::string& frame_url, std::function<void(ApiResult)> done) {
+    api_.dispatch(call, frame_url, domains_, bridge_, std::move(done));
 }
 
 void Engine::set_frame_rate(int fps) {

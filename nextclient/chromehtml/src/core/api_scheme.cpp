@@ -27,10 +27,11 @@ public:
         }
         CefRefPtr<ApiHandler> self(this);
         Engine::get().queue().post([self, call = *call, callback] {
-            ApiResult r = Engine::get().handle_api(call, self->frame_url_);
-            self->status_ = r.status;
-            self->body_ = std::move(r.json);
-            callback->Continue();
+            Engine::get().handle_api(call, self->frame_url_, [self, callback](ApiResult r) {
+                self->status_ = r.status;
+                self->body_ = std::move(r.json);
+                callback->Continue();
+            });
         });
         return true;
     }
