@@ -30,7 +30,7 @@
 #include "LoadingDialog.h"
 #ifdef _WIN32
 #include <Windows.h>
-#include "Browser/ExtensionConsoleApi.h"
+#include "Browser/BrowserApi.h"
 #else
 #include <cstdlib>
 #endif
@@ -264,9 +264,6 @@ CGameConsoleDialog::CGameConsoleDialog() : BaseClass(NULL, "GameConsole", false)
     m_bAutoCompleteMode = false;
     m_szPartialText[0] = 0;
 
-#ifdef _WIN32
-    browserExtensionConsoleApi = new ContainerExtensionConsoleApi();
-#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -274,9 +271,6 @@ CGameConsoleDialog::CGameConsoleDialog() : BaseClass(NULL, "GameConsole", false)
 //-----------------------------------------------------------------------------
 CGameConsoleDialog::~CGameConsoleDialog()
 {
-#ifdef _WIN32
-    delete browserExtensionConsoleApi;
-#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -320,7 +314,7 @@ void CGameConsoleDialog::Print(const wchar_t *begin, const wchar_t *end)
 void CGameConsoleDialog::ColorPrint(Color color, const char *msg)
 {
 #ifdef _WIN32
-    if (!browserExtensionConsoleApi->HandlePrint(color, std::string(msg)))
+    BrowserApi_ConsolePrint(msg);
 #endif
     {
         m_pHistory->InsertColorChange(color);
@@ -331,7 +325,7 @@ void CGameConsoleDialog::ColorPrint(Color color, const char *msg)
 void CGameConsoleDialog::ColorPrint(Color color, const char *begin, const char *end)
 {
 #ifdef _WIN32
-    if (!browserExtensionConsoleApi->HandlePrint(color, std::string(begin, end)))
+    BrowserApi_ConsolePrint(std::string(begin, end));
 #endif
     {
         m_pHistory->InsertColorChange(color);
@@ -342,7 +336,12 @@ void CGameConsoleDialog::ColorPrint(Color color, const char *begin, const char *
 void CGameConsoleDialog::ColorPrint(Color color, const wchar_t *begin, const wchar_t *end)
 {
 #ifdef _WIN32
-    if (!browserExtensionConsoleApi->HandlePrint(color, std::wstring(begin, end)))
+    {
+        int n = WideCharToMultiByte(CP_UTF8, 0, begin, static_cast<int>(end - begin), nullptr, 0, nullptr, nullptr);
+        std::string utf8(n, ' ');
+        WideCharToMultiByte(CP_UTF8, 0, begin, static_cast<int>(end - begin), utf8.data(), n, nullptr, nullptr);
+        BrowserApi_ConsolePrint(utf8);
+    }
 #endif
     {
         m_pHistory->InsertColorChange(color);

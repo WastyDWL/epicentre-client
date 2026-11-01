@@ -5,6 +5,7 @@
 #include "common/log.h"
 #include "common/ncb_scheme.h"
 #include "core/api_router.h"
+#include "core/js_api.h"
 #include "core/menu_scheme.h"
 #include "include/cef_app.h"
 #include "include/cef_cookie.h"
@@ -122,7 +123,11 @@ void Engine::run_frame() {
     std::vector<CefRefPtr<Browser>> live;
     live.reserve(browsers_.size());
     for (auto& [key, b] : browsers_) live.push_back(b);
-    for (auto& b : live) b->deliver_frame();
+    for (auto& b : live) {
+        if (!b->create_requested())
+            b->create(config_.frame_rate, zoom_level(config_.zoom_percent), config_.fit_width, false);
+        b->deliver_frame();
+    }
     std::erase_if(closing_, [](auto& b) { return b->finished(); });
 }
 
@@ -137,13 +142,17 @@ Browser* Engine::get_or_create(const void* key, IHTMLResponses_HL1* target) {
     CefRefPtr<Browser> b = new Browser(next_id_++, target, queue_);
     browsers_[key] = b;
     log("browser %d: new for serializer %p, target %p", next_id_ - 1, key, target);
-    b->create(config_.frame_rate, zoom_level(config_.zoom_percent), config_.fit_width);
+    // The CEF browser is created by CreateBrowser (which says whether this is the main menu) or,
+    // for panels that never send it, on the next frame.
     return b.get();
 }
 
-Browser* Engine::create_for_panel(const void* key, IHTMLResponses_HL1* target) {
+Browser* Engine::create_for_panel(const void* key, IHTMLResponses_HL1* target, std::string_view user_agent) {
     panels_.created(key);
-    return get_or_create(key, target);
+    Browser* b = get_or_create(key, target);
+    if (b) b->create(config_.frame_rate, zoom_level(config_.zoom_percent), config_.fit_width,
+                     is_main_menu_agent(user_agent));
+    return b;
 }
 
 Browser* Engine::lazy_for_panel(const void* key, IHTMLResponses_HL1* target) {

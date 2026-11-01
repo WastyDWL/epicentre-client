@@ -46,11 +46,7 @@
 #include "IClientVGUI.h"
 
 #ifdef _WIN32
-#include "Browser/AcceptedDomains.h"
-#include "Browser/ExtensionCommon.h"
-#include "Browser/ExtensionMatchmaking.h"
-#include "Browser/ExtensionMatchmakingListings.h"
-#include "Browser/ExtensionGameUiApi.h"
+#include "Browser/BrowserApi.h"
 #endif
 
 namespace fs = std::filesystem;
@@ -383,12 +379,7 @@ void CGameUI::Start(goldsrc::cl_enginefunc_t* engineFuncs, int interfaceVersion,
     engine->pfnAddCommand("r_mat_images", []() { GameUI().DumpMaterialImages(); });
 
 #ifdef _WIN32
-    RegisterCommonJsApi(engineFuncs);
-    RegisterMatchmakingJsApi();
-    RegisterMatchmakingListingsJsApi();
-    LoadAcceptedDomainsForJsApiFromDisk("platform/accepted_domains.txt");
-
-    browserExtensionGameUiApi = new ContainerExtensionGameUiApi();
+    BrowserApi_Init();
 #endif
 }
 
@@ -417,7 +408,7 @@ void CGameUI::Shutdown(void)
     DisconnectTier2Libraries();
 
 #ifdef _WIN32
-    delete browserExtensionGameUiApi;
+    BrowserApi_Shutdown();
 #endif
 }
 
@@ -440,10 +431,6 @@ int CGameUI::ActivateGameUI(void)
         g_hLoadingDialog = NULL;
     }
 
-#ifdef _WIN32
-    if(!IsGameUIActive())
-        browserExtensionGameUiApi->OnActivateGameUI();
-#endif
 
     BasePanel()->OnGameUIActivated();
     BasePanel()->SetVisible(true);
@@ -492,7 +479,7 @@ void CGameUI::RunFrame(void)
         BasePanel()->RunFrame();
 
 #ifdef _WIN32
-    browserExtensionGameUiApi->RunFrame();
+    BrowserApi_RunFrame();
 #endif
     task_run_impl_->OnUpdate();
 }
@@ -548,9 +535,6 @@ void CGameUI::HideGameUI()
         g_hLoadingDialog = NULL;
     }
 
-#ifdef _WIN32
-    browserExtensionGameUiApi->OnHideGameUI();
-#endif
 }
 
 bool CGameUI::BeginPanelOverGame(vgui2::Panel* panel)

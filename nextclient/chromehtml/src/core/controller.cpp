@@ -95,8 +95,9 @@ void NcController::SetWebCookie(const char* host, const char* key, const char* v
     Engine::get().set_cookie(host, key, value, path, expires);
 }
 
-void NcController::CreateBrowser(IHTMLResponses* target, bool, const char*) {
-    if (NcSerializer* s = serializer_from_target(target)) Engine::get().create_for_panel(s, s->target());
+void NcController::CreateBrowser(IHTMLResponses* target, bool, const char* user_agent) {
+    if (NcSerializer* s = serializer_from_target(target))
+        Engine::get().create_for_panel(s, s->target(), user_agent ? user_agent : "");
 }
 
 void NcController::RemoveBrowser(IHTMLResponses* target) {

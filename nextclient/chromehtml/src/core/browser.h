@@ -33,7 +33,9 @@ public:
     Browser(int id, IHTMLResponses_HL1* target, MainThreadQueue& queue);
 
     // --- main thread ---
-    void create(int frame_rate, double zoom_level, bool fit_width);
+    // Creates the CEF browser once; later calls are ignored.
+    void create(int frame_rate, double zoom_level, bool fit_width, bool main_menu);
+    bool create_requested() const { return create_requested_; }
     void close();  // the panel is gone: no more callbacks into the game
     int index() const;  // -1 until the CEF browser exists
     void post_url(const char* url, const char* post_data);
@@ -161,6 +163,7 @@ private:
     int mods_ = 0;
     double zoom_level_ = 0;  // set before create(), read on the CEF UI thread
     bool fit_width_ = false;
+    bool create_requested_ = false;  // main thread
     bool buttons_[3] = {};
 
     IMPLEMENT_REFCOUNTING(Browser);

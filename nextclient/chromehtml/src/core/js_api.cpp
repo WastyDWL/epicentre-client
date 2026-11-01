@@ -81,10 +81,32 @@ constexpr char kApiScript[] = R"JS((function () {
     getPlayersInfo: function (ip) { return callAsync('getPlayersInfo', ip); },
     getRules: function (ip) { return callAsync('getRules', ip); },
     getFavoriteServers: function () { return callAsync('getFavoriteServers'); },
+    getInternetServers: function () { return callAsync('getInternetServers'); },
     getHistoryServers: function () { return callAsync('getHistoryServers'); },
     addFavoriteServer: function (ip) { return callAsync('addFavoriteServer', ip); },
     removeFavoriteServer: function (ip) { return callAsync('removeFavoriteServer', ip); }
   };
+})();)JS";
+
+// Floating "back to menu" button for sites opened from the main menu (the site forbids framing,
+// so it replaces the menu page). Top-centre, clear of the game's own menu buttons bottom-left.
+constexpr char kBackButtonScript[] = R"JS((function () {
+  if (window.__ncbBack || window.top !== window) return;
+  window.__ncbBack = true;
+  function add() {
+    if (!document.body || document.getElementById('__ncb-back')) return;
+    var b = document.createElement('button');
+    b.id = '__ncb-back';
+    b.textContent = '← В меню';
+    b.style.cssText = 'position:fixed;z-index:2147483647;top:10px;left:50%;transform:translateX(-50%);' +
+      'padding:9px 18px;border:0;border-radius:10px;cursor:pointer;color:#fff;' +
+      'font:700 13px/1 "Segoe UI",sans-serif;letter-spacing:.04em;' +
+      'background:linear-gradient(135deg,#ff7a1a,#ff4d2e);box-shadow:0 6px 20px rgba(0,0,0,.45)';
+    b.onclick = function () { location.href = 'ncl://menu/'; };
+    document.body.appendChild(b);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add);
+  else add();
 })();)JS";
 
 }  // namespace
@@ -155,6 +177,14 @@ std::string dispatch_script(std::string_view target, std::string_view type, std:
 }
 
 const char* api_script() { return kApiScript; }
+
+bool is_main_menu_agent(std::string_view user_agent) { return user_agent.find("Main Menu") != std::string_view::npos; }
+
+bool wants_back_button(std::string_view url) {
+    return url.substr(0, 7) == "http://" || url.substr(0, 8) == "https://";
+}
+
+const char* back_button_script() { return kBackButtonScript; }
 
 bool api_resource_type_allowed(cef_resource_type_t type) { return type == RT_XHR; }  // fetch() reports RT_XHR too
 

@@ -68,7 +68,6 @@
 #include "graphics/render/render_state.h"
 #include "graphics/render/render_capture.h"
 #include "graphics/render/material/ServerMaterials.h"
-#include "binding/jsapi/jsapi.h"
 #include "common/cvar.h"
 #include "console/console.h"
 #include "console/protector.h"
@@ -211,7 +210,6 @@ static void EngineMiniUninitialize()
     KV_UninitializeKeyValuesSystem();
 
 #ifdef _WIN32
-    JSAPI_Shutdown();
 #endif
 
     // MultiSourceQuery's thread only exits once its owner is destroyed, and
@@ -763,7 +761,6 @@ static void OnGameInitialized()
 
     CL_CreateHttpDownloadManager(g_pGameUi, g_pLocalize, g_SettingGuard);
 #ifdef _WIN32
-    JSAPI_Init();
 #endif
     CL_CvarsSandboxInit();
     CL_StringRegistryInit();

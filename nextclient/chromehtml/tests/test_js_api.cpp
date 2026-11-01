@@ -58,6 +58,24 @@ TEST(dispatch_script_guards_missing_api) {
 TEST(api_script_defines_nextclient) {
     std::string s = api_script();
     for (const char* name : {"makeAsEventTarget", "nextclient.exec", "getCvarValue", "connectedHost", "gameUi",
-                             "optionsDialog", "console", "matchmaking", "ncb://api/"})
+                             "optionsDialog", "console", "matchmaking", "getInternetServers", "ncb://api/"})
         CHECK(s.find(name) != std::string::npos);
+}
+
+TEST(main_menu_agent_detected) {
+    CHECK(is_main_menu_agent("NextClient CEF1 Main Menu Browser"));
+    CHECK(is_main_menu_agent("Epicentre Main Menu Browser"));
+    CHECK(!is_main_menu_agent("Valve Client"));
+    CHECK(!is_main_menu_agent(""));
+}
+
+TEST(back_button_only_off_menu) {
+    CHECK(!wants_back_button("ncl://menu/index.html"));
+    CHECK(!wants_back_button("ncl://menu/"));
+    CHECK(wants_back_button("https://epicentre-cs.ru/"));
+    CHECK(!wants_back_button("about:blank"));
+    CHECK(!wants_back_button("data:text/html,x"));
+    std::string s = back_button_script();
+    CHECK(s.find("ncl://menu/") != std::string::npos);
+    CHECK(s.find("__ncbBack") != std::string::npos);  // idempotent marker
 }

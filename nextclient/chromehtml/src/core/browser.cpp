@@ -55,7 +55,9 @@ CefRefPtr<CefBrowser> Browser::cef_browser() {
     return browser_;
 }
 
-void Browser::create(int frame_rate, double zoom_level, bool fit_width) {
+void Browser::create(int frame_rate, double zoom_level, bool fit_width, bool main_menu) {
+    if (create_requested_) return;
+    create_requested_ = true;
     zoom_level_ = zoom_level;
     fit_width_ = fit_width;
     CefWindowInfo info;
@@ -63,7 +65,10 @@ void Browser::create(int frame_rate, double zoom_level, bool fit_width) {
     CefBrowserSettings settings;
     settings.windowless_frame_rate = frame_rate;
     settings.background_color = CefColorSetARGB(0, 0, 0, 0);
-    CefBrowserHost::CreateBrowser(info, this, "about:blank", settings, nullptr, nullptr);
+    // The renderer reads this in OnBrowserCreated (back-to-menu button for the main menu).
+    CefRefPtr<CefDictionaryValue> extra = CefDictionaryValue::Create();
+    extra->SetBool("mainMenu", main_menu);
+    CefBrowserHost::CreateBrowser(info, this, "about:blank", settings, extra, nullptr);
 }
 
 void Browser::close() {

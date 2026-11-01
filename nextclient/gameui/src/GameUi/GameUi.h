@@ -139,7 +139,6 @@ private:
     vgui2::ISurface* m_Surface{};
     bool m_ShuttingDown{};
 
-    class ContainerExtensionGameUiApi* browserExtensionGameUiApi = nullptr;
 };
 
 extern CGameUI& GameUI();

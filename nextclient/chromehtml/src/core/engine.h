@@ -37,7 +37,7 @@ public:
     Browser* find(const void* key);
     Browser* get_or_create(const void* key, IHTMLResponses_HL1* target);
     // CreateBrowser from the game: always gets a browser.
-    Browser* create_for_panel(const void* key, IHTMLResponses_HL1* target);
+    Browser* create_for_panel(const void* key, IHTMLResponses_HL1* target, std::string_view user_agent = {});
     // Any other serializer call: creates one only for panels the game has not removed.
     Browser* lazy_for_panel(const void* key, IHTMLResponses_HL1* target);
     void remove(const void* key);

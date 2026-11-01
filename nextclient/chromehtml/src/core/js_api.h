@@ -43,4 +43,10 @@ std::string dispatch_script(std::string_view target, std::string_view type, std:
 // Bootstrap evaluated in every new JS context.
 const char* api_script();
 
+// The main-menu panel creates its browser with a user agent identifier containing "Main Menu".
+bool is_main_menu_agent(std::string_view user_agent);
+// In the main-menu browser, pages other than the built-in menu get a "back to menu" button.
+bool wants_back_button(std::string_view url);
+const char* back_button_script();
+
 }  // namespace nc
