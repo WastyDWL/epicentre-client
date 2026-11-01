@@ -9,6 +9,9 @@ set PATH=D:\dev\tools\ninja;%PATH%
 rem vcpkg's WinHTTP downloader wants host:port, without the scheme.
 if defined HTTPS_PROXY set HTTPS_PROXY=%HTTPS_PROXY:http://=%
 if defined HTTP_PROXY set HTTP_PROXY=%HTTP_PROXY:http://=%
+rem Downloads go through tools\vcpkg-fetch.ps1 (.NET), which works behind HTTP proxies where
+rem vcpkg's WinHTTP downloader does not.
+set X_VCPKG_ASSET_SOURCES=x-script,powershell -NoProfile -ExecutionPolicy Bypass -File %~dp0vcpkg-fetch.ps1 {url} {dst}
 set VCPKG_DEFAULT_BINARY_CACHE=D:\dev\vcpkg-cache
 if not exist "%VCPKG_DEFAULT_BINARY_CACHE%" mkdir "%VCPKG_DEFAULT_BINARY_CACHE%"
 cd /d "%~dp0.."
