@@ -106,7 +106,7 @@ public:
             case ListKind::Internet: request_ = mm->RequestInternetServerList(app, nullptr, 0, this); break;
         }
     }
-    ~ListQuery() override {
+    ~ListQuery() {
         if (request_) {
             SteamMatchmakingServers()->CancelQuery(request_);
             SteamMatchmakingServers()->ReleaseRequest(request_);
@@ -180,7 +180,8 @@ ncl::IBrowserApi* find_api() {
     HMODULE m = GetModuleHandleA("chromehtml.dll");
     if (!m) m = LoadLibraryA("chromehtml.dll");
     auto create = m ? reinterpret_cast<CreateInterfaceFn>(GetProcAddress(m, "CreateInterface")) : nullptr;
-    return create ? static_cast<ncl::IBrowserApi*>(create(NCL_BROWSER_API_VERSION, nullptr)) : nullptr;
+    // The SDK's CreateInterfaceFn returns IBaseInterface*; chromehtml.dll returns the IBrowserApi object.
+    return create ? reinterpret_cast<ncl::IBrowserApi*>(create(NCL_BROWSER_API_VERSION, nullptr)) : nullptr;
 }
 
 }  // namespace

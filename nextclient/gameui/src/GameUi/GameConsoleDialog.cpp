@@ -338,7 +338,7 @@ void CGameConsoleDialog::ColorPrint(Color color, const wchar_t *begin, const wch
 #ifdef _WIN32
     {
         int n = WideCharToMultiByte(CP_UTF8, 0, begin, static_cast<int>(end - begin), nullptr, 0, nullptr, nullptr);
-        std::string utf8(n, ' ');
+        std::string utf8(n, '\0');
         WideCharToMultiByte(CP_UTF8, 0, begin, static_cast<int>(end - begin), utf8.data(), n, nullptr, nullptr);
         BrowserApi_ConsolePrint(utf8);
     }
