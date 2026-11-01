@@ -435,8 +435,8 @@ int CGameUI::ActivateGameUI(void)
     BasePanel()->OnGameUIActivated();
     BasePanel()->SetVisible(true);
 
-    if (!m_bLoadlingLevel)
-        OpenServerBrowserIfNeeded();
+    // Epicentre: the main menu page is the start screen, so the vgui server browser no longer opens
+    // by itself (it is still one click away via "Find servers").
 
     engine->pfnClientCmd("setpause");
         

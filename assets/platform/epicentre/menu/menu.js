@@ -57,7 +57,8 @@
       $('hero-name').textContent = s.hostname;
       $('hero-map-name').textContent = s.map;
       $('hero-online').textContent = s.playersOnline;
-      $('hero-max').textContent = s.playersMax + (s.botsOnline ? ` · +${s.botsOnline} ботов` : '');
+      $('hero-max').textContent = s.playersMax;
+      $('hero-bots').textContent = s.botsOnline ? ` · +${s.botsOnline} ботов` : '';
       $('hero-bar').style.width = Math.min(100, (100 * s.playersOnline) / Math.max(1, s.playersMax)) + '%';
       $('hero-dot').className = 'dot on';
       $('hero-state').textContent = 'Сервер онлайн';
