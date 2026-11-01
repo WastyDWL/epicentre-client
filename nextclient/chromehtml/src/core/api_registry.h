@@ -20,6 +20,8 @@ public:
     bool IsTrusted(const char* frame_url) override;
 
     void set_domains(const Domains* domains) { domains_ = domains; }
+    // How results computed on worker threads (server queries) get back to the main thread.
+    void set_main_thread_poster(std::function<void(std::function<void()>)> post) { post_ = std::move(post); }
     // Main thread. `done` runs once, now or when a registered handler replies.
     void dispatch(const ApiCall& call, const std::string& frame_url, const Domains& domains, GameApi& game,
                   std::function<void(ApiResult)> done);
@@ -34,6 +36,7 @@ private:
     std::map<std::string, Entry> methods_;
     std::vector<std::string> scripts_;
     const Domains* domains_ = nullptr;
+    std::function<void(std::function<void()>)> post_;
 };
 
 }  // namespace nc

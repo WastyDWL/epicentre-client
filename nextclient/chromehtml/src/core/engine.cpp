@@ -79,6 +79,7 @@ bool Engine::init(const EngineOptions& opts) {
     if (!domains_.load(game_dir + L"\\platform\\accepted_domains.txt"))
         log("no platform\\accepted_domains.txt: privileged nextclient.* calls are denied");
     api_.set_domains(&domains_);
+    api_.set_main_thread_poster([this](std::function<void()> task) { queue_.post(std::move(task)); });
     bridge_.attach();
     log("CEF %s initialized", CEF_VERSION);
     return true;

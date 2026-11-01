@@ -2,6 +2,8 @@
 
 #include <memory>
 
+#include "core/a2s.h"
+
 namespace nc {
 
 namespace {
@@ -52,6 +54,16 @@ void ApiRegistry::dispatch(const ApiCall& call, const std::string& frame_url, co
     if (it != methods_.end()) {
         it->second.handler(it->second.context, call.method.c_str(), call.arg.c_str(), frame_url.c_str(),
                            new Reply(std::move(done)));
+        return;
+    }
+    // Built-in server queries (UDP A2S) when no module provides matchmaking.
+    if (post_ && (call.method == "getServerInfo" || call.method == "getPlayersInfo")) {
+        auto post = post_;
+        auto finish = [post, done = std::move(done)](std::optional<std::string> json) {
+            post([done, json] { done(json ? ApiResult{200, *json} : ApiResult{504, "null"}); });
+        };
+        if (call.method == "getServerInfo") a2s::query_info(call.arg, finish);
+        else a2s::query_players(call.arg, finish);
         return;
     }
     const Domains* saved = domains_;
