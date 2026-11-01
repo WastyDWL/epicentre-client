@@ -20,7 +20,10 @@ if (NOT EPICENTRE_CEF_ROOT)
     FetchContent_Declare(cef_binary
             URL "https://cef-builds.spotifycdn.com/${_cef_file}"
             URL_HASH SHA1=06b89aa0742c3efcb865afcfae08d9e7044650d4
-            DOWNLOAD_EXTRACT_TIMESTAMP ON)
+            DOWNLOAD_EXTRACT_TIMESTAMP ON
+            # Files only: the distribution's own CMakeLists would add libcef_dll_wrapper (and its
+            # samples) a second time.
+            SOURCE_SUBDIR "no-cmake-project")
     FetchContent_MakeAvailable(cef_binary)
     set(EPICENTRE_CEF_ROOT "${cef_binary_SOURCE_DIR}")
 endif ()
