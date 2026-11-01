@@ -40,6 +40,22 @@ else ()
 endif ()
 file(COPY "${INSTALL_ASSETS_DIRECTORY}/" DESTINATION "${INSTALL_DIRECTORY}")
 
+# Epicentre browser: chromehtml.dll in the game root (hw.dll loads it by name), CEF in browser/cef.
+if (INSTALL_BROWSER_DLL)
+    file(COPY_FILE "${INSTALL_BROWSER_DLL}" "${INSTALL_DIRECTORY}/chromehtml.dll")
+    set(cef_dir "${INSTALL_DIRECTORY}/browser/cef")
+    file(MAKE_DIRECTORY "${cef_dir}")
+    file(COPY_FILE "${INSTALL_BROWSER_SUBPROCESS}" "${cef_dir}/ncb_subprocess.exe")
+    foreach (runtime_dir IN LISTS INSTALL_CEF_RUNTIME_DIRS)
+        file(GLOB runtime_files "${runtime_dir}/*.dll" "${runtime_dir}/*.bin" "${runtime_dir}/*.json"
+                "${runtime_dir}/*.pak" "${runtime_dir}/*.dat")
+        file(COPY ${runtime_files} DESTINATION "${cef_dir}")
+        if (EXISTS "${runtime_dir}/locales")
+            file(COPY "${runtime_dir}/locales" DESTINATION "${cef_dir}")
+        endif ()
+    endforeach ()
+endif ()
+
 if (INSTALL_TRACY_SOURCE)
     get_filename_component(tracy_filename "${INSTALL_TRACY_SOURCE}" NAME)
     file(COPY_FILE "${INSTALL_TRACY_SOURCE}" "${INSTALL_DIRECTORY}/${tracy_filename}")

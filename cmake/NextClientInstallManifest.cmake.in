@@ -13,3 +13,7 @@ set(INSTALL_LIBRARY_SOURCES
 set(INSTALL_CRASHPAD_SOURCE [==[@VCPKG_INSTALLED_DIR@/@VCPKG_TARGET_TRIPLET@/tools/sentry-native/crashpad_handler.exe]==])
 set(INSTALL_LINUX_LAUNCHER_SOURCE [==[@NEXTCLIENT_ROOT@/nextclient/launcher/linux/nextclient.sh]==])
 set(INSTALL_TRACY_SOURCE [==[@NEXTCLIENT_INSTALL_TRACY_SOURCE@]==])
+# Epicentre: Chromium-based chromehtml.dll and its CEF runtime (Windows only; empty elsewhere)
+set(INSTALL_BROWSER_DLL [==[@NEXTCLIENT_INSTALL_BROWSER_DLL@]==])
+set(INSTALL_BROWSER_SUBPROCESS [==[@NEXTCLIENT_INSTALL_BROWSER_SUBPROCESS@]==])
+set(INSTALL_CEF_RUNTIME_DIRS [==[@CHROMEHTML_CEF_RUNTIME_DIRS@]==])

@@ -129,6 +129,10 @@ add_subdirectory(nextclient/nitro_api)
 unset(CMAKE_CXX_STANDARD)
 
 add_subdirectory(nextclient/packages)
+if (WIN32)
+    # chromehtml.dll: the client's Chromium 150 browser (replaces Valve's CEF1 chromehtml.dll)
+    add_subdirectory(nextclient/chromehtml)
+endif ()
 add_subdirectory(nextclient/engine_mini)
 add_subdirectory(nextclient/gameui)
 add_subdirectory(nextclient/client_mini)
@@ -192,6 +196,11 @@ if (NOT NEXTCLIENT_BUILD_TESTS)
             nitro_api
             vgui2
     )
+    if (WIN32)
+        add_dependencies(BUILD_ALL chromehtml ncb_subprocess)
+        set(NEXTCLIENT_INSTALL_BROWSER_DLL "$<TARGET_FILE:chromehtml>")
+        set(NEXTCLIENT_INSTALL_BROWSER_SUBPROCESS "$<TARGET_FILE:ncb_subprocess>")
+    endif ()
 
     if (NEXTCLIENT_INSTALL_DIR AND (WIN32 OR UNIX))
         if (WIN32)

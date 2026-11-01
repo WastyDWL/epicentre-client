@@ -59,6 +59,11 @@ target_include_directories(${PROJECT_NAME} PRIVATE
         include
 )
 
+if (WIN32)
+    # NCL_BrowserApi_001 (window.nextclient in the Chromium browser)
+    target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../chromehtml/include)
+endif ()
+
 target_link_libraries(${PROJECT_NAME} PRIVATE
         NextClient::profiling
         hl1_source_sdk::hl1_source_sdk

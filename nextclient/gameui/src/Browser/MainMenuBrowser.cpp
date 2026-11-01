@@ -22,7 +22,8 @@ CMainMenuBrowser::CMainMenuBrowser(vgui2::Panel* parent)
 
 void CMainMenuBrowser::InitializeBrowser() {
 	m_pHtml = new vgui2::HTML(this, "MainMenuBrowserHTML");
-	m_pHtml->InitializeBrowser("NextClient CEF1 Main Menu Browser", true);
+	// "Main Menu" tells chromehtml.dll this is the main-menu browser (back-to-menu button on sites).
+	m_pHtml->InitializeBrowser("Epicentre Main Menu Browser", true);
 
     std::vector<std::string_view> lang_views;
     nitro_utils::split(SteamApps()->GetAvailableGameLanguages(), ",", lang_views);
@@ -89,8 +90,13 @@ std::vector<uint8_t> CMainMenuBrowser::ReadFile(const std::string& fileName) {
 }
 
 void CMainMenuBrowser::OpenHomePage() {
+	// platform/mmb_home_page.html still overrides the start page; by default the client opens its
+	// built-in Epicentre menu, served by chromehtml.dll from platform/epicentre/menu.
 	auto rawHomePageUrl = ReadFile("platform/mmb_home_page.html");
-	if(!rawHomePageUrl.size()) return;
+	if(!rawHomePageUrl.size()) {
+		const std::string builtinMenu = "ncl://menu/index.html";
+		rawHomePageUrl.assign(builtinMenu.begin(), builtinMenu.end());
+	}
 
 	InitializeBrowser();
 
