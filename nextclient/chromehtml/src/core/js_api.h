@@ -48,5 +48,7 @@ bool is_main_menu_agent(std::string_view user_agent);
 // In the main-menu browser, pages other than the built-in menu get a "back to menu" button.
 bool wants_back_button(std::string_view url);
 const char* back_button_script();
+// Shrinks pages wider than the panel with CSS zoom; refits whenever the panel is resized.
+const char* fit_width_script();
 
 }  // namespace nc

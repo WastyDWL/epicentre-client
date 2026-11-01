@@ -109,6 +109,23 @@ constexpr char kBackButtonScript[] = R"JS((function () {
   else add();
 })();)JS";
 
+// Shrinks a page wider than the panel (fixed-width MOTD tables) with CSS zoom so it fits without
+// horizontal scrolling. Re-measured at natural size on every resize: panels start tiny and grow.
+constexpr char kFitWidthScript[] = R"JS((function () {
+  if (window.__ncbFit) return window.__ncbFit();
+  var d = document.documentElement, timer = 0;
+  function fit() {
+    if (!document.body) return;
+    d.style.zoom = '';
+    var w = window.innerWidth, sw = Math.max(d.scrollWidth, document.body.scrollWidth);
+    if (w > 200 && sw > w + 1) d.style.zoom = (w / sw).toFixed(4);
+  }
+  window.__ncbFit = fit;
+  window.addEventListener('resize', function () { clearTimeout(timer); timer = setTimeout(fit, 50); });
+  fit();
+  setTimeout(fit, 600);
+})();)JS";
+
 }  // namespace
 
 std::optional<ApiCall> parse_api_url(std::string_view url) {
@@ -185,6 +202,8 @@ bool wants_back_button(std::string_view url) {
 }
 
 const char* back_button_script() { return kBackButtonScript; }
+
+const char* fit_width_script() { return kFitWidthScript; }
 
 bool api_resource_type_allowed(cef_resource_type_t type) { return type == RT_XHR; }  // fetch() reports RT_XHR too
 

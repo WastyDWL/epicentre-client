@@ -16,8 +16,9 @@ set VCPKG_DEFAULT_BINARY_CACHE=D:\dev\vcpkg-cache
 if not exist "%VCPKG_DEFAULT_BINARY_CACHE%" mkdir "%VCPKG_DEFAULT_BINARY_CACHE%"
 cd /d "%~dp0.."
 if not exist vcpkg\vcpkg.exe call vcpkg\bootstrap-vcpkg.bat -disableMetrics || exit /b 1
-if not "%~2"=="" (set INSTALL_ARG=-DNEXTCLIENT_INSTALL_DIR=%~2) else (set INSTALL_ARG=)
+rem Arguments are quoted: install and CEF paths may contain spaces.
+cmake --preset ninja || exit /b 1
+if not "%~2"=="" (cmake build\ninja "-DNEXTCLIENT_INSTALL_DIR=%~2" || exit /b 1)
 rem EPICENTRE_CEF_ROOT: an extracted CEF 150 windows32 minimal; empty = download during configure
-if defined EPICENTRE_CEF_ROOT (set CEF_ARG=-DEPICENTRE_CEF_ROOT=%EPICENTRE_CEF_ROOT%) else (set CEF_ARG=)
-cmake --preset ninja %INSTALL_ARG% %CEF_ARG% || exit /b 1
+if defined EPICENTRE_CEF_ROOT (cmake build\ninja "-DEPICENTRE_CEF_ROOT=%EPICENTRE_CEF_ROOT%" || exit /b 1)
 cmake --build build\ninja --config %CONFIG% --target BUILD_ALL

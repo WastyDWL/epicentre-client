@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include "common/log.h"
+#include "core/js_api.h"
 #include "core/keymap.h"
 #include "core/main_thread_queue.h"
 #include "core/view_math.h"
@@ -13,20 +14,6 @@
 namespace nc {
 
 namespace {
-
-// Shrinks a page that is wider than the panel (fixed-width tables in MOTD pages) with CSS zoom,
-// so it fits without horizontal scrolling. Re-checked once late content (images, fonts) settled.
-constexpr char kFitWidthScript[] = R"JS((function () {
-  var d = document.documentElement;
-  function fit() {
-    if (!document.body) return;
-    d.style.zoom = '';
-    var w = window.innerWidth, sw = Math.max(d.scrollWidth, document.body.scrollWidth);
-    if (sw > w + 1) d.style.zoom = (w / sw).toFixed(4);
-  }
-  fit();
-  setTimeout(fit, 600);
-})();)JS";
 
 std::string error_page(const ErrorStrings& e, const std::string& detail) {
     return "<html><head><meta charset=\"utf-8\"><title>" + e.title + "</title></head><body><h1>" + e.header +
@@ -380,7 +367,7 @@ void Browser::OnLoadingStateChange(CefRefPtr<CefBrowser> browser, bool loading, 
 }
 
 void Browser::OnLoadEnd(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame, int) {
-    if (fit_width_ && frame->IsMain()) frame->ExecuteJavaScript(kFitWidthScript, frame->GetURL(), 0);
+    if (fit_width_ && frame->IsMain()) frame->ExecuteJavaScript(fit_width_script(), frame->GetURL(), 0);
 }
 
 void Browser::OnLoadError(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame, ErrorCode code, const CefString& text,

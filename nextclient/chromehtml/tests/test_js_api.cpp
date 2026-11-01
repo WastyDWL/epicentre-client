@@ -79,3 +79,10 @@ TEST(back_button_only_off_menu) {
     CHECK(s.find("ncl://menu/") != std::string::npos);
     CHECK(s.find("__ncbBack") != std::string::npos);  // idempotent marker
 }
+
+TEST(fit_width_refits_on_resize) {
+    // The main-menu panel starts tiny (64x24) and grows: a one-shot fit left the page shrunk.
+    std::string s = fit_width_script();
+    CHECK(s.find("addEventListener('resize'") != std::string::npos);
+    CHECK(s.find("style.zoom = ''") != std::string::npos);  // re-measured at natural size
+}
