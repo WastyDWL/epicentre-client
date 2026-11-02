@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 
 #include <ncl_gl/context.h>
 
@@ -54,6 +55,8 @@ void HudCs2::Init()
 {
     enabled_cvar_ = cl_enginefunc()->pfnRegisterVariable("cl_hud_cs2", "1", goldsrc::FCVAR_ARCHIVE);
     crosshair_cvar_ = cl_enginefunc()->pfnGetCvarPointer("crosshair");
+    // kill cards over the emblem: 1 CS2 style, 2 classic aces, 0 the drawn emblem without cards
+    cards_cvar_ = cl_enginefunc()->pfnRegisterVariable("cl_hud_cs2_cards", "1", goldsrc::FCVAR_ARCHIVE);
 }
 
 void HudCs2::VidInit()
@@ -183,6 +186,64 @@ int HudCs2::LocalTeam()
     return local && IsValidClientIndex(local->index) ? cl()->g_PlayerExtraInfo[local->index].teamnumber : 0;
 }
 
+const HudCs2::CardStyle* HudCs2::FindCardStyle(const char* name)
+{
+    if (!card_styles_loaded_)
+    {
+        card_styles_loaded_ = true;
+        if (FILE* f = std::fopen("cstrike/resource/epicentre_hud/cards/cards.txt", "r"))
+        {
+            char line[128];
+            while (std::fgets(line, sizeof(line), f))
+            {
+                CardStyle c{};
+                if (line[0] != '#' && std::sscanf(line, "%15s %d %d %d %d %d", c.name, &c.tex_w, &c.tex_h, &c.strip_w, &c.strip_h, &c.line) == 6)
+                    card_styles_.push_back(c);
+            }
+            std::fclose(f);
+        }
+    }
+    for (const CardStyle& c : card_styles_)
+    {
+        if (std::strcmp(c.name, name) == 0)
+            return &c;
+    }
+    return nullptr;
+}
+
+bool HudCs2::DrawKillStrip(float cx, float line_y, float h, bool terrorist)
+{
+    int style_id = cards_cvar_ ? static_cast<int>(cards_cvar_->value) : 1;
+    const char* style_name = style_id == 1 ? "cs2" : style_id == 2 ? "classic" : nullptr;
+    const CardStyle* style = style_name ? FindCardStyle(style_name) : nullptr;
+    if (!style || style->tex_w <= 0 || style->tex_h <= 0)
+        return false;
+
+    // the overlays covered a 16:9 screen, so the strip keeps that stretch at this height
+    float kx = h * 16.0f / 9.0f / style->tex_w, ky = h / style->tex_h;
+    const Cs2HudState& st = Cs2State();
+    int kills = std::clamp(st.round_kills, 0, 5);
+
+    auto frame = [&](int n, float alpha, float scale) {
+        char name[64];
+        std::snprintf(name, sizeof(name), "cards/%s_%s_%d", style->name, terrorist ? "tt" : "ct", n + 1);
+        float dw = style->strip_w * kx * scale, dh = style->strip_h * ky * scale;
+        return Icon(name, cx - dw * 0.5f, line_y - style->line * ky * scale, dw, dh, {255, 255, 255, static_cast<uint8_t>(alpha * 255)});
+    };
+
+    // a new card pops in: the previous strip fades out under the new one, which settles from 108%
+    float t = static_cast<float>(cl_enginefunc()->GetClientTime()) - st.last_kill_time;
+    constexpr float kPop = 0.28f;
+    if (kills > 0 && t >= 0.0f && t < kPop)
+    {
+        float k = t / kPop;
+        float ease = 1.0f - (1.0f - k) * (1.0f - k);
+        frame(kills - 1, 1.0f - ease, 1.0f);
+        return frame(kills, ease, 1.0f + 0.08f * (1.0f - ease));
+    }
+    return frame(kills, 1.0f, 1.0f);
+}
+
 void HudCs2::DrawEmblem(float cx, float h, float s)
 {
     float y = h - kLineY * s;
@@ -190,6 +251,10 @@ void HudCs2::DrawEmblem(float cx, float h, float s)
 
     int tn = LocalTeam();
     ncl_math::Color team = tn == goldsrc::cstrike::TEAM_TERRORIST ? kTeamT : tn == goldsrc::cstrike::TEAM_CT ? kTeamCT : kNeutral;
+
+    // the Kill Overlay Manager strip of the chosen style: divider, emblem and this round's kill cards
+    if (DrawKillStrip(cx, line_y, h, tn == goldsrc::cstrike::TEAM_TERRORIST))
+        return;
 
     // the divider: one hairline each side, fading out from the emblem (the same for both teams;
     // the pack's two divider pictures differ in size and emblem)
@@ -248,15 +313,19 @@ void HudCs2::DrawHealthArmor(float cx, float h, float s)
     float armor_top = top + (big - small) * 0.72f;
     float armor_w = text_.Draw(buf, {armor_right, armor_top}, small, true, st.armor > 0 ? kInk : kInkDim, Cs2Text::Align::Right);
 
-    float sx = armor_right - armor_w - 18 * s, sy = armor_top + small * 0.5f;
-    float sw = 9 * s, sh = 7 * s;
-    ncl_math::Color shield = WithAlpha(st.armor > 0 ? kInk : kInkDim, 220);
-    if (Icon(st.helmet ? "ico_armorhelm" : "ico_armor", sx - 16 * s, sy - 16 * s, 32 * s, 32 * s, shield))
-        return;
-    draw_.DrawRect({sx - sw, sy - sh - 2 * s}, {sx + sw, sy + 2 * s}, shield);
-    draw_.DrawTriangle({sx - sw, sy + 2 * s}, {sx + sw, sy + 2 * s}, {sx, sy + 13 * s}, shield);
+    // a filled shield like CS2's: the pack's outline icon thins away at HUD size
+    float sx = armor_right - armor_w - 20 * s, sy = armor_top + small * 0.42f;
+    float sw = 11 * s, sh = 9 * s;
+    ncl_math::Color shield = WithAlpha(kInk, st.armor > 0 ? 240 : 150);
+    draw_.DrawRect({sx - sw, sy - sh}, {sx + sw, sy + 3 * s}, shield);
+    draw_.DrawTriangle({sx - sw, sy + 3 * s}, {sx + sw, sy + 3 * s}, {sx, sy + 16 * s}, shield);
+    // a darker inner shape gives the shield its rim
+    float in = 3 * s;
+    ncl_math::Color face{30, 30, 32, static_cast<uint8_t>(st.armor > 0 ? 150 : 110)};
+    draw_.DrawRect({sx - sw + in, sy - sh + in}, {sx + sw - in, sy + 3 * s}, face);
+    draw_.DrawTriangle({sx - sw + in, sy + 3 * s}, {sx + sw - in, sy + 3 * s}, {sx, sy + 16 * s - in * 1.6f}, face);
     if (st.helmet)
-        draw_.DrawRect({sx - sw * 0.6f, sy - sh - 6 * s}, {sx + sw * 0.6f, sy - sh - 3.5f * s}, shield);
+        draw_.DrawDisc({sx, sy - sh - 1 * s}, 6 * s, shield); // the helmet's dome over the shield
 }
 
 void HudCs2::DrawAmmo(float cx, float h, float s)

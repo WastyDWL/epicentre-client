@@ -27,6 +27,10 @@ struct Cs2HudState
     float round_end = 0.0f;  // client time the round clock reaches zero (RoundTime)
     bool bomb_planted = false;
 
+    // the local player's kills this round (cards over the emblem) and when the last one landed
+    int round_kills = 0;
+    float last_kill_time = -100.0f;
+
     // scoreboard: money per player index (Account, sent for teammates) and whether Tab is held
     std::array<int, 33> account{};
     std::array<bool, 33> has_account{};

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include <goldsrc/cvar.h>
 
 #include "hud/HudBase.h"
@@ -22,6 +24,19 @@ class HudCs2 : public HudBase, public HudBaseHelper
     Cs2Avatars avatars_;
     goldsrc::cvar_t* enabled_cvar_{};
     goldsrc::cvar_t* crosshair_cvar_{};
+    goldsrc::cvar_t* cards_cvar_{};
+
+    // cards.txt from tools/import-cs2-hud.py --kill-cards
+    struct CardStyle
+    {
+        char name[16];
+        int tex_w, tex_h, strip_w, strip_h, line;
+    };
+    std::vector<CardStyle> card_styles_;
+    bool card_styles_loaded_ = false;
+    const CardStyle* FindCardStyle(const char* name);
+    // false when the style's art is missing, so the drawn emblem stands in
+    bool DrawKillStrip(float cx, float line_y, float h, bool terrorist);
 
 public:
     HudCs2(nitroapi::NitroApiInterface* nitro_api, radar::integration::Performance& performance);

@@ -71,6 +71,7 @@ namespace
         {"RoundTime", [](MessageReader& r) {
              g_State.round_end = static_cast<float>(gEngfuncs.GetClientTime()) + r.ReadShort();
              g_State.bomb_planted = false;
+             g_State.round_kills = 0; // a new round: the kill cards start over
          }, nullptr},
         {"ServerName", [](MessageReader& r) {
              std::string name = r.ReadString();
@@ -346,6 +347,23 @@ void Cs2HudState_Subscribe(nitroapi::NitroApiInterface* nitro_api, std::vector<s
                 g_State.scoreboard_held = true;
         }
         return next->Invoke(down, keynum, binding);
+    });
+
+    // the local player's kills: a card over the emblem and the CS2 kill / headshot sound
+    unsub.emplace_back(cl->UserMsg_DeathMsg += [](const char*, int size, void* data) {
+        MessageReader reader(data, size);
+        int killer = reader.ReadByte();
+        int victim = reader.ReadByte();
+        bool headshot = reader.ReadByte() != 0;
+        goldsrc::cl_entity_t* local = gEngfuncs.GetLocalPlayer();
+        if (!local || !g_State.scoreboard_own)
+            return;
+        if (killer == local->index && victim != killer)
+        {
+            g_State.round_kills++;
+            g_State.last_kill_time = static_cast<float>(gEngfuncs.GetClientTime());
+            gEngfuncs.pfnPlaySoundByName(headshot ? "epicentre/headshot.wav" : "epicentre/kill.wav", 1.0f);
+        }
     });
 
     unsub.emplace_back(cl->UserMsg_BombDrop +=[](const char*, int size, void* data, int) {
