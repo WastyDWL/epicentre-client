@@ -1,8 +1,9 @@
 name: Release
 
+# Epicentre: releases are packed locally with CEF 150 (tools\build-windows.cmd), so publishing
+# a release must not start the upstream NextClient packaging. Manual runs only.
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: write
