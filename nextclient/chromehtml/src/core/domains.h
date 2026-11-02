@@ -1,5 +1,8 @@
 // Domains allowed to use privileged nextclient.* calls (platform/accepted_domains.txt),
 // matched exactly like NextClient's AcceptedDomains.cpp.
+// Epicentre ships the list empty: only the built-in menu (ncl://menu) is trusted. A listed domain
+// gets nextclient.exec (any console command) on every player's game, so one XSS on that site,
+// or an http:// page swapped on the way, would reach them all.
 #pragma once
 
 #include <set>

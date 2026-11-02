@@ -93,6 +93,17 @@ TEST(registry_trust_menu_and_domains) {
     CHECK(!reg.IsTrusted("ncl://menu.evil/"));
 }
 
+// Epicentre ships an empty platform/accepted_domains.txt: the site gets no privileged calls.
+TEST(registry_empty_list_trusts_only_menu) {
+    ApiRegistry reg;
+    Domains d;
+    d.load_from_string("");
+    reg.set_domains(&d);
+    CHECK(reg.IsTrusted("ncl://menu/index.html"));
+    CHECK(!reg.IsTrusted("https://epicentre-cs.ru/forum"));
+    CHECK(!reg.IsTrusted("http://epicentre-cs.ru/"));
+}
+
 TEST(registry_events_queued_as_scripts) {
     ApiRegistry reg;
     reg.DispatchEvent("nextclient.console", "message", "{\"text\":\"hi\"}");
