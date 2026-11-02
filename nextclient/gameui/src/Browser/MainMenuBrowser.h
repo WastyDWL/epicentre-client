@@ -4,6 +4,8 @@
 #include <vgui_controls/HTML.h>
 #include <vgui_controls/EditablePanel.h>
 
+class CBobPreviewPanel;
+
 class CMainMenuBrowser : public vgui2::EditablePanel {
 public:
 	DECLARE_CLASS_SIMPLE(CMainMenuBrowser, EditablePanel);
@@ -14,6 +16,10 @@ public:
 	void OpenHomePage();
 	void OpenURL(const char *URL);
 	void SetFullscreen(bool status);
+
+	// The weapon preview of the options page, drawn over the page in the rectangle it keeps
+	// free (browser pixels); w <= 0 hides it. move/demo: PreviewMove/PreviewDemo values.
+	void SetGamePreview(int x, int y, int w, int h, int move, int demo);
 
 	// IViewportPanel overrides
 	const char* GetName() override {
@@ -36,6 +42,9 @@ public:
 private:
 	bool m_bRenderFullscreen = false;
 	vgui2::HTML* m_pHtml;
+	CBobPreviewPanel* m_pPreview = nullptr;
+
+	void SyncPreview();
 
 	virtual void PerformLayout();
 	virtual void OnThink();

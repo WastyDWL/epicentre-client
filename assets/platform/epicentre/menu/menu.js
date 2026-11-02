@@ -237,10 +237,27 @@
     const host = nc ? nc.connectedHost : null;
     const inGame = !!host;
     const b = (cmd, label, cls = '') => `<button class="tab ${cls}" data-cmd="${cmd}">${label}</button>`;
+    const settings = `<button class="tab${currentTab === 'settings' ? ' active' : ''}" data-tab="settings">Настройки</button>`;
     $('rail').innerHTML = (inGame
       ? b('Resume', '▶ В игру', 'primary') + b('Players', 'Игроки') + b('Disconnect', 'Отключиться', 'danger')
       : b('NewGame', 'Новая игра')) +
-      b('Options', 'Настройки') + b('Quit', 'Выход', 'danger');
+      settings + b('Quit', 'Выход', 'danger');
+  }
+
+  let currentTab = 'home';
+  function showTab(name) {
+    currentTab = name;
+    document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
+    document.querySelectorAll('.page').forEach((p) => p.classList.toggle('active', p.id === 'page-' + name));
+    document.body.classList.toggle('settings-open', name === 'settings');
+    if (name === 'servers') {
+      if (!lists[listKind].size && !loading[listKind]) loadList();
+      else renderList();
+    }
+    if (window.EpicSettings) {
+      if (name === 'settings') window.EpicSettings.open();
+      else window.EpicSettings.close();
+    }
   }
 
   // ---- wiring ----
@@ -258,12 +275,7 @@
       navigator.clipboard?.writeText(SERVER);
       toast('Адрес скопирован');
     } else if (t.dataset.tab) {
-      document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b === t));
-      document.querySelectorAll('.page').forEach((p) => p.classList.toggle('active', p.id === 'page-' + t.dataset.tab));
-      if (t.dataset.tab === 'servers') {
-        if (!lists[listKind].size && !loading[listKind]) loadList();
-        else renderList();
-      }
+      showTab(t.dataset.tab);
     } else if (t.dataset.list) {
       listKind = t.dataset.list;
       document.querySelectorAll('.chip').forEach((b) => b.classList.toggle('active', b === t));

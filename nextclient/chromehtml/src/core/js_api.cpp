@@ -75,6 +75,20 @@ constexpr char kApiScript[] = R"JS((function () {
   nextclient.gameUi.command = function (name) { return callAsync('gameUiCommand', String(name)); };
   // opens an allowed https link (vk.ru, epicentre-cs.ru) in the system browser (trusted pages)
   nextclient.openExternal = function (url) { return callAsync('openExternal', String(url)); };
+  // the menu's own options screen (trusted pages): video modes and key bindings
+  nextclient.settings = {
+    getVideoState: function () { return callAsync('getVideoState'); },
+    applyVideo: function (w, h, windowed, low) { return callAsync('applyVideo', [w | 0, h | 0, windowed ? 1 : 0, low ? 1 : 0].join(' ')); },
+    getKeyBindings: function () { return callAsync('getKeyBindings'); },
+    bindKey: function (key, binding) { return callAsync('bindKey', String(key) + '\t' + (binding ? String(binding) : '')); },
+    // weapon preview over the page; rect in CSS pixels of this page, null hides it.
+    // move: 0 run, 1 walk, 2 strafe, 3 idle; demo: 0 none, 1 lag, 2 weapon switch
+    setGamePreview: function (rect, move, demo) {
+      var k = window.devicePixelRatio || 1;
+      var r = rect ? [rect.left, rect.top, rect.width, rect.height].map(function (v) { return Math.round(v * k); }) : [0, 0, 0, 0];
+      return callAsync('setGamePreview', r.concat([move | 0, demo | 0]).join(' '));
+    }
+  };
   makeAsEventTarget(nextclient.gameUi);
 
   nextclient.console = {};

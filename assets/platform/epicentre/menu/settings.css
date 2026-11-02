@@ -1,0 +1,155 @@
+/* Options screen, CS2-like: centred category bar, sub-tabs, label/value rows */
+.page.settings { max-width: none; margin: 0; }
+body.settings-open main { padding: 0; overflow: hidden; display: flex; }
+body.settings-open .page.settings.active { display: flex; flex-direction: column; width: 100%; height: 100%; }
+
+.settings {
+  --st-font: "Bahnschrift SemiCondensed", "Bahnschrift", "Segoe UI", sans-serif;
+  background: linear-gradient(180deg, rgb(8 10 20 / .55), rgb(8 10 20 / .25));
+}
+
+.st-head {
+  position: relative; display: flex; justify-content: center; align-items: center;
+  height: 52px; border-bottom: 1px solid var(--line); background: rgb(6 8 16 / .55);
+}
+.st-search {
+  position: absolute; left: 24px; top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; gap: 8px; color: var(--muted);
+}
+.st-search span { font-size: 20px; line-height: 1; }
+.st-search input {
+  width: 190px; padding: 7px 10px; border-radius: 6px; outline: none;
+  color: var(--text); background: rgb(255 255 255 / .05); border: 1px solid var(--line); font: 13px "Segoe UI", sans-serif;
+}
+.st-search input:focus { border-color: rgb(57 167 255 / .6); }
+.st-cats { display: flex; gap: 4px; }
+.st-cat, .st-tab {
+  cursor: pointer; border: 0; background: none; color: rgb(233 236 245 / .72);
+  font: 600 15px/1 var(--st-font); letter-spacing: .06em; text-transform: uppercase;
+  padding: 9px 14px; border-radius: 4px;
+}
+.st-cat:hover, .st-tab:hover { color: #fff; background: rgb(255 255 255 / .06); }
+.st-cat.on { color: #fff; background: linear-gradient(135deg, rgb(255 122 26 / .85), rgb(255 77 46 / .85)); }
+
+.st-tabs {
+  display: flex; justify-content: center; flex-wrap: wrap; gap: 2px;
+  padding: 8px 16px; border-bottom: 1px solid var(--line); background: rgb(6 8 16 / .35);
+}
+.st-tab { font-size: 13px; padding: 8px 12px; }
+.st-tab.on { color: #fff; box-shadow: inset 0 -2px 0 var(--orange); border-radius: 0; }
+
+.st-body { flex: 1; overflow-y: auto; padding: 6px 24px 40px; }
+.st-group { max-width: 820px; margin: 0 auto; padding-top: 22px; }
+.st-group h3 {
+  margin: 0 0 4px; padding: 0 2px 8px; color: rgb(233 236 245 / .5);
+  font: 600 15px/1 var(--st-font); letter-spacing: .04em;
+}
+.st-hint { max-width: 820px; margin: 22px auto 0; color: var(--muted); font-size: 13px; }
+
+.st-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  min-height: 52px; padding: 6px 2px; border-bottom: 1px solid rgb(255 255 255 / .08);
+}
+.st-row:hover { background: linear-gradient(90deg, rgb(255 255 255 / .04), transparent 70%); }
+.st-label { font-size: 15px; color: rgb(233 236 245 / .9); }
+.st-ctl { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+
+/* dropdown */
+.st-dd { position: relative; }
+.st-dd-btn {
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 150px;
+  cursor: pointer; border: 1px solid transparent; border-radius: 4px; background: none; color: #fff;
+  font: 700 16px/1 var(--st-font); letter-spacing: .03em; text-transform: uppercase; padding: 9px 10px;
+}
+.st-dd-btn i { font-style: normal; font-size: 16px; color: rgb(255 255 255 / .7); transform: translateY(-3px); }
+.st-dd-btn:hover, .st-dd.open .st-dd-btn { background: rgb(255 255 255 / .1); border-color: rgb(255 255 255 / .12); }
+.st-dd-menu {
+  display: none; position: absolute; right: 0; top: calc(100% + 2px); z-index: 20; min-width: 100%;
+  max-height: 300px; overflow-y: auto; padding: 4px; border-radius: 4px;
+  background: #1b2030; border: 1px solid rgb(255 255 255 / .14); box-shadow: 0 14px 30px rgb(0 0 0 / .5);
+}
+.st-dd.open .st-dd-menu { display: block; }
+.st-dd-menu button {
+  display: block; width: 100%; text-align: left; white-space: nowrap; cursor: pointer;
+  border: 0; border-radius: 3px; background: none; color: rgb(233 236 245 / .85);
+  font: 14px/1 "Segoe UI", sans-serif; padding: 9px 12px;
+}
+.st-dd-menu button:hover { background: rgb(255 255 255 / .08); color: #fff; }
+.st-dd-menu button.on { color: var(--orange); }
+
+/* slider */
+.st-range { -webkit-appearance: none; appearance: none; width: 210px; height: 4px; border-radius: 2px; background: rgb(255 255 255 / .2); outline: none; }
+.st-range::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px; border-radius: 2px; cursor: pointer;
+  background: #e9ecf5; box-shadow: 0 0 0 3px rgb(0 0 0 / .35);
+}
+.st-range:hover::-webkit-slider-thumb { background: var(--orange); }
+.st-num, .st-text {
+  height: 34px; padding: 0 10px; border-radius: 3px; outline: none; color: #fff;
+  background: rgb(0 0 0 / .3); border: 1px solid rgb(255 255 255 / .14);
+  font: 700 15px/1 var(--st-font);
+}
+.st-num { width: 76px; text-align: left; }
+.st-text { width: 260px; font: 15px "Segoe UI", sans-serif; }
+.st-num:focus, .st-text:focus { border-color: rgb(255 122 26 / .7); }
+
+/* weapon preview stage: GameUI draws the 3D preview into #st-scene */
+.st-stage {
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 18px;
+  padding: 12px 24px; border-bottom: 1px solid var(--line); background: rgb(6 8 16 / .45);
+}
+.st-moves, .st-presets { display: flex; flex-direction: column; gap: 6px; }
+.st-moves { align-items: flex-end; }
+.st-presets { align-items: flex-start; }
+.st-presets span { color: rgb(233 236 245 / .5); font: 600 13px/1 var(--st-font); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 2px; }
+.st-move, .st-preset {
+  width: 150px; cursor: pointer; text-align: left; border-radius: 4px; padding: 8px 12px; color: rgb(233 236 245 / .85);
+  background: rgb(255 255 255 / .05); border: 1px solid var(--line); font: 600 13px/1 var(--st-font); letter-spacing: .04em; text-transform: uppercase;
+}
+.st-move:hover, .st-preset:hover { color: #fff; border-color: rgb(255 255 255 / .3); }
+.st-move.on { color: #fff; border-color: transparent; background: linear-gradient(135deg, rgb(255 122 26 / .85), rgb(255 77 46 / .85)); }
+.st-preset:hover { border-color: rgb(255 122 26 / .6); }
+.st-scene {
+  width: 384px; height: 216px; border-radius: 4px; overflow: hidden;
+  background: #000; box-shadow: 0 0 0 1px rgb(255 255 255 / .14), 0 10px 30px rgb(0 0 0 / .45);
+}
+.st-scene canvas { width: 100%; height: 100%; display: block; }
+@media (max-height: 640px) { .st-scene { width: 288px; height: 162px; } }
+.st-swatches { display: flex; gap: 6px; }
+.st-sw { width: 26px; height: 26px; border-radius: 4px; cursor: pointer; border: 2px solid rgb(0 0 0 / .35); padding: 0; }
+.st-sw.on { outline: 2px solid #fff; outline-offset: 1px; }
+.st-custom { position: relative; overflow: hidden; display: grid; place-items: center; }
+.st-custom::after { content: "+"; color: #fff; font: 700 15px/1 "Segoe UI"; text-shadow: 0 0 3px #000; }
+.st-custom input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* key bindings */
+.st-key {
+  width: 132px; height: 34px; cursor: pointer; border-radius: 3px; color: #fff;
+  background: rgb(0 0 0 / .3); border: 1px solid rgb(255 255 255 / .14);
+  font: 700 15px/1 var(--st-font); letter-spacing: .03em; text-transform: uppercase;
+}
+.st-key:hover { border-color: rgb(255 255 255 / .35); }
+.st-key.unset { color: rgb(255 255 255 / .35); }
+.st-key.wait { border-color: var(--orange); color: var(--orange); animation: st-blink 1s ease infinite; }
+@keyframes st-blink { 50% { background: rgb(255 122 26 / .14); } }
+
+/* video apply bar */
+.st-apply {
+  display: flex; align-items: center; gap: 10px; justify-content: flex-end;
+  padding: 12px 2px; color: var(--muted); font-size: 13px; border-bottom: 1px solid rgb(255 255 255 / .08);
+}
+.st-apply span { margin-right: auto; }
+.st-apply button, .st-reset, .st-legacy {
+  cursor: pointer; border-radius: 4px; padding: 9px 16px; color: var(--text);
+  background: rgb(255 255 255 / .06); border: 1px solid var(--line);
+  font: 700 13px/1 var(--st-font); letter-spacing: .05em; text-transform: uppercase;
+}
+.st-apply button.primary { color: #fff; border: 0; background: linear-gradient(135deg, var(--orange), var(--orange-2)); }
+.st-apply button:hover, .st-reset:hover, .st-legacy:hover { border-color: rgb(255 255 255 / .3); }
+
+.st-foot {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 10px 24px; border-top: 1px solid var(--line); background: rgb(6 8 16 / .55);
+}
+.st-legacy { color: var(--muted); background: none; border-color: transparent; text-transform: none; letter-spacing: 0; font: 13px "Segoe UI", sans-serif; }
+.st-reset { margin-left: auto; }

@@ -167,6 +167,7 @@ public:
     bool IsMenuFading(void);
     // The Epicentre menu page replaces the vgui game menu while it is visible.
     bool IsMainMenuPageShown() const;
+    CMainMenuBrowser* GetMainMenuBrowser() const { return m_pMainMenuBrowser; }
     bool IsInitialLoading(void);
 
 protected:

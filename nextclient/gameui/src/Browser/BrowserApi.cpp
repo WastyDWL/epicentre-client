@@ -9,14 +9,19 @@
 #include <string>
 #include <vector>
 
+#include <FileSystem.h>
 #include <GameServerHelpers.h>
 #include <GameUi.h>
+#include <IGameUIFuncs.h>
+#include <tier2/tier2.h>
+#include <vgui/ILocalize.h>
 #include <TaskRun.h>
 #include <chromehtml/ncl_browser_api.h>
 #include <nitro_utils/net_utils.h>
 #include <steam/steam_api.h>
 
 #include "BasePanel.h"
+#include "MainMenuBrowser.h"
 
 namespace {
 
@@ -258,6 +263,202 @@ void on_open_external(void*, const char*, const char* arg, const char* frame_url
     reply->Resolve("true");
 }
 
+// ---- settings page: video modes and key bindings (the menu's own options screen) ----
+
+std::string utf8_of(const wchar_t* w) {
+    if (!w) return {};
+    int n = WideCharToMultiByte(CP_UTF8, 0, w, -1, nullptr, 0, nullptr, nullptr);
+    std::string out(n > 0 ? n - 1 : 0, '\0');
+    if (n > 1) WideCharToMultiByte(CP_UTF8, 0, w, -1, out.data(), n, nullptr, nullptr);
+    return out;
+}
+
+// "#Token" through the game's localization, anything else as it is
+std::string localized(const std::string& text) {
+    if (text.empty() || text[0] != '#' || !g_pVGuiLocalize) return text;
+    const wchar_t* w = g_pVGuiLocalize->Find(text.c_str());
+    return w ? utf8_of(w) : text;
+}
+
+// Quoted or bare tokens of a gfx/shell list file, "//" comments skipped.
+std::vector<std::string> list_tokens(const char* path) {
+    std::vector<std::string> out;
+    FileHandle_t fh = g_pFullFileSystem->Open(path, "rb");
+    if (fh == FILESYSTEM_INVALID_HANDLE) return out;
+    std::string data(g_pFullFileSystem->Size(fh), '\0');
+    g_pFullFileSystem->Read(data.data(), static_cast<int>(data.size()), fh);
+    g_pFullFileSystem->Close(fh);
+
+    size_t i = 0;
+    while (i < data.size()) {
+        unsigned char c = data[i];
+        if (c <= ' ') { i++; continue; }
+        if (c == '/' && i + 1 < data.size() && data[i + 1] == '/') {
+            while (i < data.size() && data[i] != '\n') i++;
+            continue;
+        }
+        std::string tok;
+        if (c == '"') {
+            for (i++; i < data.size() && data[i] != '"'; i++) tok += data[i];
+            i++;
+        } else {
+            for (; i < data.size() && static_cast<unsigned char>(data[i]) > ' '; i++) tok += data[i];
+        }
+        out.push_back(tok);
+    }
+    return out;
+}
+
+struct VideoState { int w = 0, h = 0, bpp = 32, windowed = 0, low = 0; };
+
+VideoState current_video() {
+    VideoState v;
+    char renderer[128];
+    int hd = 0, addons = 0;
+    g_pGameUIFuncs->GetCurrentVideoMode(&v.w, &v.h, &v.bpp);
+    g_pGameUIFuncs->GetCurrentRenderer(renderer, sizeof(renderer), &v.windowed, &hd, &addons, &v.low);
+    return v;
+}
+
+void on_video_state(void*, const char*, const char*, const char* frame_url, IBrowserApiReply* reply) {
+    if (!trusted(frame_url)) return reply->Reject(403);
+    vmode_t* modes = nullptr;
+    int count = 0;
+    g_pGameUIFuncs->GetVideoModes(&modes, &count);
+    std::set<std::pair<int, int>> seen;
+    std::string list = "[";
+    for (int i = 0; i < count; i++) {
+        if (modes[i].iWidth < 640 || modes[i].iHeight < 480) continue;
+        if (!seen.insert({modes[i].iWidth, modes[i].iHeight}).second) continue;
+        if (list.size() > 1) list += ',';
+        list += "[" + std::to_string(modes[i].iWidth) + "," + std::to_string(modes[i].iHeight) + "]";
+    }
+    list += "]";
+    VideoState v = current_video();
+    std::string json = "{\"modes\":" + list + ",\"width\":" + std::to_string(v.w) + ",\"height\":" + std::to_string(v.h) +
+                       ",\"windowed\":" + json_bool(v.windowed != 0) + ",\"lowDetail\":" + json_bool(v.low != 0) + "}";
+    reply->Resolve(json.c_str());
+}
+
+// "width height windowed lowDetail"; restarts the engine like the vgui dialog, only on a change
+void on_apply_video(void*, const char*, const char* arg, const char* frame_url, IBrowserApiReply* reply) {
+    if (!trusted(frame_url)) return reply->Reject(403);
+    int w = 0, h = 0, windowed = 0, low = 0;
+    if (!arg || sscanf(arg, "%d %d %d %d", &w, &h, &windowed, &low) != 4) return reply->Reject(400);
+
+    vmode_t* modes = nullptr;
+    int count = 0;
+    bool known = false;
+    g_pGameUIFuncs->GetVideoModes(&modes, &count);
+    for (int i = 0; i < count && !known; i++) known = modes[i].iWidth == w && modes[i].iHeight == h;
+    if (!known) return reply->Reject(400);
+
+    VideoState v = current_video();
+    windowed = windowed ? 1 : 0;
+    low = low ? 1 : 0;
+    if (v.w == w && v.h == h && (v.windowed != 0) == (windowed != 0) && (v.low != 0) == (low != 0))
+        return reply->Resolve("{\"restart\":false}");
+
+    char cmd[128];
+    snprintf(cmd, sizeof(cmd), "_setvideomode %d %d %d\n", w, h, v.bpp > 16 ? 32 : 16);
+    engine->pfnClientCmd(cmd);
+    snprintf(cmd, sizeof(cmd), "_setrenderer gl %s\n", windowed ? "windowed" : "fullscreen");
+    engine->pfnClientCmd(cmd);
+    snprintf(cmd, sizeof(cmd), "_set_vid_level %d\n", low);
+    engine->pfnClientCmd(cmd);
+    reply->Resolve("{\"restart\":true}");
+    engine->pfnClientCmd("fmod stop\n");
+    engine->pfnClientCmd("_restart\n");
+}
+
+// sections of gfx/shell/kb_act.lst with localized captions, the current key of every
+// binding and the defaults of kb_def.lst
+void on_key_bindings(void*, const char*, const char*, const char* frame_url, IBrowserApiReply* reply) {
+    if (!trusted(frame_url)) return reply->Reject(403);
+
+    std::vector<std::string> act = list_tokens("gfx/shell/kb_act.lst");
+    std::string sections = "[";
+    bool open = false;
+    for (size_t i = 0; i + 1 < act.size(); i += 2) {
+        const std::string& binding = act[i];
+        const std::string& caption = act[i + 1];
+        if (caption.empty() || caption[0] == '=') continue;
+        if (_stricmp(binding.c_str(), "blank") == 0) {
+            if (open) sections += "]},";
+            sections += "{\"title\":" + json_string(localized(caption)) + ",\"items\":[";
+            open = true;
+            continue;
+        }
+        if (!open) { sections += "{\"title\":\"\",\"items\":["; open = true; }
+        if (sections.back() != '[') sections += ',';
+        sections += "{\"binding\":" + json_string(binding) + ",\"label\":" + json_string(localized(caption)) + "}";
+    }
+    if (open) sections += "]}";
+    sections += "]";
+
+    std::string keys = "{";
+    for (int k = 0; k < 256; k++) {
+        const char* name = g_pGameUIFuncs->Key_NameForKey(k);
+        const char* binding = g_pGameUIFuncs->Key_BindingForKey(k);
+        if (!name || !name[0] || !binding || !binding[0]) continue;
+        if (keys.size() > 1) keys += ',';
+        keys += json_string(name) + ":" + json_string(binding);
+    }
+    keys += "}";
+
+    std::vector<std::string> def = list_tokens("gfx/shell/kb_def.lst");
+    std::string defaults = "[";
+    for (size_t i = 0; i + 1 < def.size(); i += 2) {
+        if (defaults.size() > 1) defaults += ',';
+        defaults += "[" + json_string(def[i]) + "," + json_string(def[i + 1]) + "]";
+    }
+    defaults += "]";
+
+    std::string json = "{\"sections\":" + sections + ",\"keys\":" + keys + ",\"defaults\":" + defaults + "}";
+    reply->Resolve(json.c_str());
+}
+
+bool safe_bind_text(const std::string& s) {
+    if (s.empty() || s.size() > 63) return false;
+    for (unsigned char c : s)
+        if (c <= ' ' || c == '"' || c == ';' || c == '\\' || c >= 0x7f) return false;
+    return true;
+}
+
+// "key\tbinding" binds, "key\t" unbinds; the binding must be one of kb_act.lst's actions
+void on_bind_key(void*, const char*, const char* arg, const char* frame_url, IBrowserApiReply* reply) {
+    if (!trusted(frame_url)) return reply->Reject(403);
+    std::string a = arg ? arg : "";
+    size_t tab = a.find('\t');
+    if (tab == std::string::npos) return reply->Reject(400);
+    std::string key = a.substr(0, tab), binding = a.substr(tab + 1);
+    if (!safe_bind_text(key) || g_pGameUIFuncs->Key_KeyStringToKeyNum(key.c_str()) < 0) return reply->Reject(400);
+
+    if (binding.empty()) {
+        engine->pfnClientCmd(const_cast<char*>(("unbind \"" + key + "\"\n").c_str()));
+        return reply->Resolve("true");
+    }
+
+    bool known = false;
+    std::vector<std::string> act = list_tokens("gfx/shell/kb_act.lst");
+    for (size_t i = 0; i + 1 < act.size() && !known; i += 2) known = _stricmp(act[i].c_str(), binding.c_str()) == 0;
+    if (!known || !safe_bind_text(binding)) return reply->Reject(400);
+
+    engine->pfnClientCmd(const_cast<char*>(("bind \"" + key + "\" \"" + binding + "\"\n").c_str()));
+    reply->Resolve("true");
+}
+
+// "x y w h move demo" in browser pixels; w 0 hides the weapon preview
+void on_game_preview(void*, const char*, const char* arg, const char* frame_url, IBrowserApiReply* reply) {
+    if (!trusted(frame_url)) return reply->Reject(403);
+    int x = 0, y = 0, w = 0, h = 0, move = 3, demo = 0;
+    if (!arg || sscanf(arg, "%d %d %d %d %d %d", &x, &y, &w, &h, &move, &demo) < 4) return reply->Reject(400);
+    CMainMenuBrowser* browser = BasePanel() ? BasePanel()->GetMainMenuBrowser() : nullptr;
+    if (!browser) return reply->Reject(404);
+    browser->SetGamePreview(x, y, w, h, move, demo);
+    reply->Resolve("true");
+}
+
 void on_options(void*, const char*, const char* arg, const char* frame_url, IBrowserApiReply* reply) {
     if (!trusted(frame_url)) return reply->Reject(403);
     g_options_tab = arg ? arg : "";
@@ -286,12 +487,18 @@ void BrowserApi_Init() {
     g_api->RegisterMethod("openOptionsDialog", &on_options, nullptr);
     g_api->RegisterMethod("gameUiCommand", &on_menu_command, nullptr);
     g_api->RegisterMethod("openExternal", &on_open_external, nullptr);
+    g_api->RegisterMethod("getVideoState", &on_video_state, nullptr);
+    g_api->RegisterMethod("applyVideo", &on_apply_video, nullptr);
+    g_api->RegisterMethod("getKeyBindings", &on_key_bindings, nullptr);
+    g_api->RegisterMethod("bindKey", &on_bind_key, nullptr);
+    g_api->RegisterMethod("setGamePreview", &on_game_preview, nullptr);
 }
 
 void BrowserApi_Shutdown() {
     if (!g_api) return;
     for (const char* m : {"getRules", "getFavoriteServers", "getHistoryServers", "getInternetServers",
-                          "addFavoriteServer", "removeFavoriteServer", "openOptionsDialog", "gameUiCommand", "openExternal"})
+                          "addFavoriteServer", "removeFavoriteServer", "openOptionsDialog", "gameUiCommand", "openExternal", "getVideoState",
+                          "applyVideo", "getKeyBindings", "bindKey", "setGamePreview"})
         g_api->UnregisterMethod(m);
     g_api = nullptr;
 }
