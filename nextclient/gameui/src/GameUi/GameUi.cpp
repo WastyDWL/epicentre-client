@@ -47,6 +47,7 @@
 
 #ifdef _WIN32
 #include "Browser/BrowserApi.h"
+#include "Browser/BuyMenuBrowser.h"
 #endif
 
 namespace fs = std::filesystem;
@@ -58,6 +59,9 @@ static EngineMiniInterface* g_pEngineMini = nullptr;
 static ScenePreviewInterface* g_pScenePreview;
 static vgui2::DHANDLE<CDemoPlayerDialog> g_hDemoPlayerDialog;
 static vgui2::DHANDLE<CHudRadarDialog> g_hHudRadarDialog;
+#ifdef _WIN32
+static vgui2::DHANDLE<CBuyMenuBrowser> g_hBuyMenu;
+#endif
 vgui2::DHANDLE<CLoadingDialog> g_hLoadingDialog;
 
 void CGameUI::OpenHudRadarDialog()
@@ -83,6 +87,40 @@ void CGameUI::OpenHudRadarDialog()
         g_hHudRadarDialog->MoveToFront();
         g_hHudRadarDialog->RequestFocus();
     }
+}
+
+void CGameUI::OpenBuyMenu(int menu)
+{
+#ifdef _WIN32
+    if (!IsInLevel() || m_bLoadlingLevel)
+    {
+        return;
+    }
+    if (!g_hBuyMenu.Get())
+    {
+        g_hBuyMenu = new CBuyMenuBrowser(BasePanel());
+    }
+    // another panel over the game (the radar settings) keeps the screen
+    if (m_hPanelOverGame.Get() && m_hPanelOverGame.Get() != g_hBuyMenu.Get())
+    {
+        return;
+    }
+    if (m_hPanelOverGame.Get() != g_hBuyMenu.Get() && !BeginPanelOverGame(g_hBuyMenu.Get()))
+    {
+        return;
+    }
+    g_hBuyMenu->Open(menu);
+#endif
+}
+
+void CGameUI::CloseBuyMenu()
+{
+#ifdef _WIN32
+    if (g_hBuyMenu.Get() && m_hPanelOverGame.Get() == g_hBuyMenu.Get())
+    {
+        ClosePanelOverGame();
+    }
+#endif
 }
 
 void CGameUI::OpenMaterialEditDialog()
@@ -187,6 +225,9 @@ static CGameUI g_GameUI;
 #ifdef _WIN32
 static HWND g_MainWindow = nullptr;
 static WNDPROC g_MainWindowProc = nullptr;
+
+// the game window (Browser/BrowserApi.cpp embeds the battle pass game in it)
+HWND GameUI_MainWindow() { return g_MainWindow; }
 #endif
 
 goldsrc::cl_enginefunc_t* engine = nullptr;
@@ -377,6 +418,9 @@ void CGameUI::Start(goldsrc::cl_enginefunc_t* engineFuncs, int interfaceVersion,
     engine->pfnAddCommand("r_mat_panel", []() { GameUI().OpenMaterialEditDialog(); });
     engine->pfnAddCommand("r_mat_scene_state", []() { GameUI().DumpMaterialSceneState(); });
     engine->pfnAddCommand("r_mat_images", []() { GameUI().DumpMaterialImages(); });
+#ifdef _WIN32
+    CBuyMenuBrowser::RegisterCommands();
+#endif
 
 #ifdef _WIN32
     BrowserApi_Init();
@@ -422,6 +466,8 @@ int CGameUI::ActivateGameUI(void)
     // opens the menu normally.
     if (IsInLevel() && m_hPanelOverGame.Get())
     {
+        // the buy menu has no close button of its own: Esc closes it, as in CS2
+        CloseBuyMenu();
         return 1;
     }
 

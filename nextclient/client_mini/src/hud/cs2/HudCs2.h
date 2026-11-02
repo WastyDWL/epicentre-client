@@ -27,6 +27,7 @@ class HudCs2 : public HudBase, public HudBaseHelper
     goldsrc::cvar_t* enabled_cvar_{};
     goldsrc::cvar_t* crosshair_cvar_{};
     goldsrc::cvar_t* cards_cvar_{};
+    goldsrc::cvar_t* buy_cvar_{};
 
     // cards.txt from tools/import-cs2-hud.py --kill-cards
     struct CardStyle

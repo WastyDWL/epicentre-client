@@ -80,6 +80,10 @@ public:
     // frame floating over the running game while in a level. Called directly from the
     // Options button (there is no console command for it).
     void OpenHudRadarDialog();
+    // The CS2-style buy menu over the running game (Browser/BuyMenuBrowser.h); menu is the
+    // VGUIMenu id the server sent. Both are no-ops outside a level.
+    void OpenBuyMenu(int menu);
+    void CloseBuyMenu();
     void OpenMaterialEditDialog();
     void CloseMaterialEditDialog();
     void OnMaterialEditDialogClosed(material_editor::CMaterialEditDialog* dialog);

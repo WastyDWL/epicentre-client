@@ -59,6 +59,8 @@ void HudCs2::Init()
     crosshair_cvar_ = cl_enginefunc()->pfnGetCvarPointer("crosshair");
     // kill cards over the emblem: 1 CS2 style, 2 classic aces, 0 the drawn emblem without cards
     cards_cvar_ = cl_enginefunc()->pfnRegisterVariable("cl_hud_cs2_cards", "1", goldsrc::FCVAR_ARCHIVE);
+    // the buy menu: 1 GameUI's CS2-style page, 0 client.dll's own
+    buy_cvar_ = cl_enginefunc()->pfnRegisterVariable("cl_buy_cs2", "1", goldsrc::FCVAR_ARCHIVE);
 }
 
 void HudCs2::VidInit()
@@ -73,6 +75,8 @@ void HudCs2::Think(float time)
 {
     // decides, at the next +showscores, whether Tab opens this board or client.dll's
     Cs2State().scoreboard_own = IsEnabled();
+    Cs2State().buy_own = buy_cvar_ && buy_cvar_->value != 0.0f;
+    Cs2HudState_SyncBuyMenu(LocalTeam(), !m_fPlayerDead && g_iUser1 == 0);
 }
 
 bool HudCs2::IsEnabled() const

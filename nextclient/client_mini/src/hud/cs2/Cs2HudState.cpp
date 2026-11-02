@@ -86,6 +86,11 @@ namespace
                  g_State.has_account[index] = true;
              }
          }, nullptr},
+        {"StatusIcon", [](MessageReader& r) {
+             int status = r.ReadByte();
+             if (r.ReadString() == std::string("buyzone"))
+                 g_State.in_buyzone = status != 0;
+         }, nullptr},
     };
 
     template <int I>
@@ -98,7 +103,7 @@ namespace
         return g_Taps[I].stock ? g_Taps[I].stock(name, size, data) : 1;
     }
 
-    MsgFn g_Trampolines[] = {Trampoline<0>, Trampoline<1>, Trampoline<2>, Trampoline<3>, Trampoline<4>, Trampoline<5>, Trampoline<6>, Trampoline<7>};
+    MsgFn g_Trampolines[] = {Trampoline<0>, Trampoline<1>, Trampoline<2>, Trampoline<3>, Trampoline<4>, Trampoline<5>, Trampoline<6>, Trampoline<7>, Trampoline<8>};
 
     // +showscores / -showscores: client.dll's handlers are kept, ours decide which board opens
     using CmdFn = void (*)();
@@ -122,8 +127,37 @@ namespace
             g_StockHideScores();
     }
 
+    // client.dll opens its buy panel itself from its own "buy" command (B) and tells the server with
+    // client_buy_open; the server's VGUIMenu only comes for menus it opens on its own
+    CmdFn g_StockBuy = nullptr;
+
+    void OpenBuyMenu(int menu)
+    {
+        char cmd[32];
+        std::snprintf(cmd, sizeof(cmd), "epic_buymenu %d\n", menu);
+        gEngfuncs.pfnClientCmd(cmd);
+    }
+
+    void BuyCommand()
+    {
+        if (g_State.buy_own && g_State.in_buyzone)
+        {
+            // the server answers client_buy_open with BuyClose when buying is not allowed (any more)
+            gEngfuncs.pfnServerCmd("client_buy_open");
+            OpenBuyMenu(28);
+            return;
+        }
+        if (g_StockBuy)
+            g_StockBuy();
+    }
+
     int AddCommandTap(const char* name, CmdFn fn)
     {
+        if (name && std::strcmp(name, "buy") == 0)
+        {
+            g_StockBuy = fn;
+            return g_EngineAddCommand(name, BuyCommand);
+        }
         if (name && std::strcmp(name, "+showscores") == 0)
         {
             g_StockShowScores = fn;
@@ -139,6 +173,34 @@ namespace
     static_assert(std::size(g_Trampolines) == std::size(g_Taps));
 
     HookFn g_EngineHook = nullptr;
+
+    // VGUIMenu ids of CS 1.6's buy menu and its submenus (VGUI_Menu_Buy .. VGUI_Menu_Buy_Item)
+    constexpr int kMenuBuy = 28;
+    constexpr int kMenuBuyItem = 34;
+    MsgFn g_StockVguiMenu = nullptr;
+
+    // The server sends the buy menu only to a player who may buy, so it opens GameUI's page
+    // (epic_buymenu) instead of client.dll's panel; every other menu goes on to client.dll.
+    int VguiMenuTap(const char* name, int size, void* data)
+    {
+        int menu = size > 0 ? static_cast<const unsigned char*>(data)[0] : 0;
+        if (g_State.buy_own && menu >= kMenuBuy && menu <= kMenuBuyItem)
+        {
+            g_State.in_buyzone = true;
+            OpenBuyMenu(menu);
+            return 1;
+        }
+        return g_StockVguiMenu ? g_StockVguiMenu(name, size, data) : 1;
+    }
+
+    // BuyClose: the server refused client_buy_open (buy time over, out of the zone)
+    MsgFn g_StockBuyClose = nullptr;
+
+    int BuyCloseTap(const char* name, int size, void* data)
+    {
+        gEngfuncs.pfnClientCmd("epic_buymenu_close\n");
+        return g_StockBuyClose ? g_StockBuyClose(name, size, data) : 1;
+    }
 
     // While the stock HUD draws, sprites and fills in the stock ammo corner are dropped: hiding the
     // whole ammo element (HIDEHUD_WEAPONS) would also take the weapon selection with it.
@@ -182,6 +244,16 @@ namespace
 
     int HookUserMsgTap(const char* name, MsgFn fn)
     {
+        if (name && std::strcmp(name, "VGUIMenu") == 0)
+        {
+            g_StockVguiMenu = fn;
+            return g_EngineHook(name, VguiMenuTap);
+        }
+        if (name && std::strcmp(name, "BuyClose") == 0)
+        {
+            g_StockBuyClose = fn;
+            return g_EngineHook(name, BuyCloseTap);
+        }
         for (size_t i = 0; i < std::size(g_Taps); i++)
         {
             if (name && std::strcmp(name, g_Taps[i].name) == 0)
@@ -311,6 +383,46 @@ void Cs2HudState_SyncStockScoreboard()
         }
     }
 #endif
+}
+
+void Cs2HudState_SyncBuyMenu(int team, bool alive)
+{
+    // _epic_* are GameUI's (registered at its start); the page polls them
+    static goldsrc::cvar_t* open = nullptr;
+    static goldsrc::cvar_t* money = nullptr;
+    static goldsrc::cvar_t* team_cvar = nullptr;
+    static bool close_sent = false;
+    if (!open)
+    {
+        open = gEngfuncs.pfnGetCvarPointer("_epic_buy");
+        money = gEngfuncs.pfnGetCvarPointer("_epic_money");
+        team_cvar = gEngfuncs.pfnGetCvarPointer("_epic_team");
+        if (!open || !money || !team_cvar)
+        {
+            open = nullptr;
+            return;
+        }
+    }
+    if (money->value != static_cast<float>(g_State.money))
+        gEngfuncs.Cvar_SetValue("_epic_money", static_cast<float>(g_State.money));
+    if (team_cvar->value != static_cast<float>(team))
+        gEngfuncs.Cvar_SetValue("_epic_team", static_cast<float>(team));
+
+    static bool was_open = false;
+    if (open->value == 0.0f)
+    {
+        if (was_open)
+            gEngfuncs.pfnServerCmd("client_buy_close");
+        was_open = false;
+        close_sent = false;
+        return;
+    }
+    was_open = true;
+    if (!close_sent && (!alive || !g_State.in_buyzone || !g_State.buy_own))
+    {
+        close_sent = true;
+        gEngfuncs.pfnClientCmd("epic_buymenu_close\n");
+    }
 }
 
 void Cs2HudState_ClipStockAmmo(bool on, int screen_w, int screen_h, int font_h)

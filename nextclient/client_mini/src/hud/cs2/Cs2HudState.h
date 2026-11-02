@@ -39,6 +39,10 @@ struct Cs2HudState
     bool scoreboard_own = false; // the CS2 HUD is on: +showscores opens ours, not client.dll's
     bool taps_active = false; // client.dll's handlers were wrapped (CLDLL_Initialize came after us)
 
+    // buy menu: GameUI's CS2-style page opens instead of client.dll's (cl_buy_cs2 1)
+    bool buy_own = false;
+    bool in_buyzone = false; // StatusIcon "buyzone"
+
     int Reserve() const
     {
         if (weapon <= 0 || weapon >= 32)
@@ -55,6 +59,10 @@ Cs2HudState& Cs2State();
 // Swaps client.dll's scoreboard for the CS2 one: hides the stock panel once it is shown and marks
 // ours open. Called every HUD frame.
 void Cs2HudState_SyncStockScoreboard();
+
+// Keeps the buy page told the player's money and team (_epic_money, _epic_team) and closes it when
+// the player dies or leaves the buy zone. Called every HUD think.
+void Cs2HudState_SyncBuyMenu(int team, bool alive);
 
 void Cs2HudState_ClipStockAmmo(bool on, int screen_w, int screen_h, int font_h);
 
