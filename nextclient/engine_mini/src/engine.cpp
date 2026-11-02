@@ -11,7 +11,6 @@
 #include <nitro_utils/string_utils.h>
 #include <service/matchmaking/MatchmakingService.h>
 #include <service/matchmaking/MatchmakingSteamComp.h>
-#include <service/discord/DiscordPresence.h>
 #include <taskcoro/TaskCoro.h>
 #include <taskcoro/impl/TaskCoroImpl.h>
 #include <tier2/tier2.h>
@@ -349,7 +348,6 @@ static void OnGameUninitializing()
     render::GetLifecycle().ReleaseLiveContext();
     performance::runtime::Shutdown();
 
-    DiscordPresence_Shutdown();
     PROTECTOR_Shutdown();
     CL_CvarsSandboxShutdown();
     CL_StringRegistryShutdown();
@@ -690,8 +688,6 @@ static void OnGameInitializing(void* mainwindow, HDC* pmaindc, HGLRC* pbaseRC, c
         {
             g_pTaskCoroImpl->Update();
         }
-
-        DiscordPresence_Frame();
     });
 
     g_Unsubs.emplace_back(eng()->S_StartDynamicSound |= S_StartDynamicSoundHook);
@@ -772,8 +768,8 @@ static void OnGameInitialized()
         std::make_unique<MaterialSyncSystem>(render::GetServerMaterials(), CL_GetStringRegistry())
     );
     CL_NclEntitySyncOverlayInit();
+    // Epicentre: no Discord rich presence (no discord-<app_id>:// scheme, no IPC)
     PROTECTOR_Init(g_SettingGuard);
-    DiscordPresence_Init();
 }
 
 class EngineMini : public EngineMiniInterface

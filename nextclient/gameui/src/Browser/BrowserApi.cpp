@@ -1,6 +1,7 @@
 #include "BrowserApi.h"
 
 #include <windows.h>
+#include <shellapi.h>
 
 #include <chrono>
 #include <map>
@@ -237,6 +238,26 @@ void run_menu_command(const std::string& c) {
     else if (c == "Resume") engine->pfnClientCmd("cancelselect\n");  // as the game menu's ResumeGame
 }
 
+// Links the menu hands to the user's own browser (VK asks for a login inside the game view).
+bool external_url_allowed(const std::string& url) {
+    static const char* const kPrefixes[] = {"https://vk.ru/", "https://vk.com/", "https://epicentre-cs.ru/"};
+    if (url.size() > 512) return false;
+    for (unsigned char c : url)
+        if (c <= ' ' || c == '"' || c == '\\' || c >= 0x7f) return false;
+    for (const char* p : kPrefixes)
+        if (url.rfind(p, 0) == 0) return true;
+    return false;
+}
+
+void on_open_external(void*, const char*, const char* arg, const char* frame_url, IBrowserApiReply* reply) {
+    if (!trusted(frame_url)) return reply->Reject(403);
+    std::string url = arg ? arg : "";
+    if (!external_url_allowed(url)) return reply->Reject(400);
+    std::wstring wide(url.begin(), url.end());  // ASCII only, checked above
+    ShellExecuteW(nullptr, L"open", wide.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    reply->Resolve("true");
+}
+
 void on_options(void*, const char*, const char* arg, const char* frame_url, IBrowserApiReply* reply) {
     if (!trusted(frame_url)) return reply->Reject(403);
     g_options_tab = arg ? arg : "";
@@ -264,12 +285,13 @@ void BrowserApi_Init() {
     g_api->RegisterMethod("removeFavoriteServer", &on_favorite, nullptr);
     g_api->RegisterMethod("openOptionsDialog", &on_options, nullptr);
     g_api->RegisterMethod("gameUiCommand", &on_menu_command, nullptr);
+    g_api->RegisterMethod("openExternal", &on_open_external, nullptr);
 }
 
 void BrowserApi_Shutdown() {
     if (!g_api) return;
     for (const char* m : {"getRules", "getFavoriteServers", "getHistoryServers", "getInternetServers",
-                          "addFavoriteServer", "removeFavoriteServer", "openOptionsDialog", "gameUiCommand"})
+                          "addFavoriteServer", "removeFavoriteServer", "openOptionsDialog", "gameUiCommand", "openExternal"})
         g_api->UnregisterMethod(m);
     g_api = nullptr;
 }

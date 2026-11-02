@@ -73,6 +73,8 @@ constexpr char kApiScript[] = R"JS((function () {
   nextclient.gameUi.optionsDialog.open = function (tab) { if (typeof tab == 'string') call('openOptionsDialog', tab); };
   // NewGame, Options, Players, ServerBrowser, Resume, Disconnect, Quit, QuitNoConfirm (trusted pages)
   nextclient.gameUi.command = function (name) { return callAsync('gameUiCommand', String(name)); };
+  // opens an allowed https link (vk.ru, epicentre-cs.ru) in the system browser (trusted pages)
+  nextclient.openExternal = function (url) { return callAsync('openExternal', String(url)); };
   makeAsEventTarget(nextclient.gameUi);
 
   nextclient.console = {};

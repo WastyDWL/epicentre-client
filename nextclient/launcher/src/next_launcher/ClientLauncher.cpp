@@ -312,7 +312,26 @@ ClientLauncher::EngineSessionResult ClientLauncher::RunEngine()
             {
                 HWND hwnd = FindCurrentProcessSDLWindow();
                 if (hwnd)
+                {
                     SetTaskbarIcon(hwnd);
+                    // "Эпицентр Арена Страйка" instead of liblist.gam's "Counter-Strike". Through SDL
+                    // (UTF-8), which keeps the title itself: SetWindowTextW came out garbled.
+                    using FromIdFn = void* (__cdecl*)(uint32_t);
+                    using SetTitleFn = void (__cdecl*)(void*, const char*);
+                    void* window = nullptr;
+                    SetTitleFn set_title = nullptr;
+                    if (HMODULE sdl = GetModuleHandleW(L"SDL2.dll"))
+                    {
+                        auto from_id = reinterpret_cast<FromIdFn>(GetProcAddress(sdl, "SDL_GetWindowFromID"));
+                        set_title = reinterpret_cast<SetTitleFn>(GetProcAddress(sdl, "SDL_SetWindowTitle"));
+                        for (uint32_t id = 1; from_id && !window && id < 16; id++)
+                            window = from_id(id);
+                    }
+                    if (window && set_title)
+                        set_title(window, "\xD0\xAD\xD0\xBF\xD0\xB8\xD1\x86\xD0\xB5\xD0\xBD\xD1\x82\xD1\x80 "
+                                          "\xD0\x90\xD1\x80\xD0\xB5\xD0\xBD\xD0\xB0 "
+                                          "\xD0\xA1\xD1\x82\xD1\x80\xD0\xB0\xD0\xB9\xD0\xBA\xD0\xB0");
+                }
             }
         }
     );

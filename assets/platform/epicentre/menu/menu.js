@@ -28,6 +28,12 @@
     location.href = SITE + (path || '/');
   }
 
+  function openExternal(url) {
+    // VK wants a login, so it opens in the player's own browser
+    if (preview || !nc.openExternal) return window.open(url, '_blank');
+    nc.openExternal(url).then(() => toast('Открыто в браузере'), () => toast('Не удалось открыть ссылку'));
+  }
+
   // ---- sample data for previews outside the game ----
   const sample = {
     info: { hostname: 'Эпицентр Арена Страйка 18+ | БЕСПЛАТНЫЙ VIP |', map: 'cs_mansion', playersOnline: 14, playersMax: 32, address: SERVER },
@@ -246,6 +252,7 @@
     else if (t.dataset.connect) connect(t.dataset.connect);
     else if (t.dataset.fav) setFavorite(t.dataset.fav, !favorites.has(t.dataset.fav));
     else if (t.dataset.site) openSite(t.dataset.site);
+    else if (t.dataset.external) openExternal(t.dataset.external);
     else if (t.dataset.action === 'site') openSite('/');
     else if (t.classList.contains('addr')) {
       navigator.clipboard?.writeText(SERVER);

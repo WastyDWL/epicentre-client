@@ -113,6 +113,8 @@ main { height: calc(100% - 64px); overflow: auto; padding: 26px 28px; }
 }
 .link:hover { border-color: rgb(255 122 26 / .5); }
 .link::after { content: "↗"; float: right; color: var(--muted); }
+.link.vk { border-color: rgb(0 119 255 / .45); }
+.link.vk:hover { border-color: rgb(0 119 255 / .8); }
 
 /* servers page */
 .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
