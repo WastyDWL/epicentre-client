@@ -107,10 +107,12 @@ bool Cs2Art::Has(const char* name)
 
 void Cs2Art::Draw(const char* name, float x, float y, float w, float h, ncl_math::Color tint)
 {
-    unsigned int tex = Texture(name);
-    if (!tex)
-        return;
+    if (unsigned int tex = Texture(name))
+        DrawTexture(tex, x, y, w, h, tint);
+}
 
+void Cs2Art::DrawTexture(unsigned int tex, float x, float y, float w, float h, ncl_math::Color tint)
+{
     GLint prev = 0;
     glGetIntegerv(GL_TEXTURE_BINDING_2D, &prev);
     glEnable(GL_TEXTURE_2D);

@@ -21,6 +21,9 @@ struct Cs2HudState
     std::array<int8_t, 32> weapon_ammo_type{}; // WeaponList: primary ammo type per weapon id, -1 none
     int score_t = 0;
     int score_ct = 0;
+    // winners of the rounds so far, in order ('C' / 'T'): read off the TeamScore increments,
+    // reset when both scores drop to zero (map change, sv_restart)
+    std::vector<char> round_winners;
     float round_end = 0.0f;  // client time the round clock reaches zero (RoundTime)
     bool bomb_planted = false;
 

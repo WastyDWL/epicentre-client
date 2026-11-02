@@ -7,6 +7,7 @@
 #include "hud/radar/integration/Performance.h"
 #include "hud/radar/render/RadarDraw.h"
 #include "Cs2Art.h"
+#include "Cs2Avatars.h"
 #include "Cs2Text.h"
 
 // CS2-style bottom HUD: armor and health left of a centre emblem, ammo right of it, money in the
@@ -18,6 +19,7 @@ class HudCs2 : public HudBase, public HudBaseHelper
     Cs2Text text_;   // digits: StratumNo2
     Cs2Text label_;  // names and captions: Bahnschrift (Cyrillic)
     Cs2Art art_;
+    Cs2Avatars avatars_;
     goldsrc::cvar_t* enabled_cvar_{};
     goldsrc::cvar_t* crosshair_cvar_{};
 
@@ -46,7 +48,8 @@ private:
     void DrawEmblem(float cx, float h, float s);
     void DrawTopBar(float cx, float s);
     void DrawScoreboard(float w, float h, float s); // HudCs2Scoreboard.cpp
-    void DrawFade(float x0, float y0, float x1, float y1, ncl_math::Color from, ncl_math::Color to);
+    // corner colours: top-left, top-right, bottom-right, bottom-left
+    void DrawGradient(float x0, float y0, float x1, float y1, ncl_math::Color tl, ncl_math::Color tr, ncl_math::Color br, ncl_math::Color bl);
 
     // Draws one art piece when the HUD folder has it; false lets the caller draw its fallback.
     bool Icon(const char* name, float x, float y, float w, float h, ncl_math::Color tint);

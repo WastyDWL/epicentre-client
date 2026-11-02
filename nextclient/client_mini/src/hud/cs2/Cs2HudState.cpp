@@ -59,10 +59,14 @@ namespace
         {"TeamScore", [](MessageReader& r) {
              std::string team = r.ReadString();
              int score = r.ReadShort();
-             if (team == "TERRORIST")
-                 g_State.score_t = score;
-             else if (team == "CT")
-                 g_State.score_ct = score;
+             int& slot = team == "TERRORIST" ? g_State.score_t : g_State.score_ct;
+             if (team != "TERRORIST" && team != "CT")
+                 return;
+             if (score == slot + 1 && g_State.round_winners.size() < 64)
+                 g_State.round_winners.push_back(team == "CT" ? 'C' : 'T');
+             slot = score;
+             if (g_State.score_t == 0 && g_State.score_ct == 0)
+                 g_State.round_winners.clear();
          }, nullptr},
         {"RoundTime", [](MessageReader& r) {
              g_State.round_end = static_cast<float>(gEngfuncs.GetClientTime()) + r.ReadShort();

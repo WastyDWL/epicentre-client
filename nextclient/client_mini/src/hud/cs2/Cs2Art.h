@@ -20,6 +20,7 @@ public:
 
     // Fixed-function textured quad; the caller flushes its own batched primitives first.
     void Draw(const char* name, float x, float y, float w, float h, ncl_math::Color tint);
+    static void DrawTexture(unsigned int texture, float x, float y, float w, float h, ncl_math::Color tint);
 
 private:
     unsigned int Texture(const char* name);

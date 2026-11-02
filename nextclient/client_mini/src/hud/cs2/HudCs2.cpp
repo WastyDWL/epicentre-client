@@ -109,6 +109,7 @@ bool HudCs2::PrepareGraphics()
         text_.Reset();
         label_.Reset();
         art_.Reset();
+        avatars_.Reset();
         draw_.Prepare(context, nullptr);
     }
     return draw_.CheckPrimsAvailable();
