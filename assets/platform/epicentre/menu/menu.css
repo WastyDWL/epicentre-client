@@ -126,7 +126,7 @@ main { height: calc(100% - 64px); overflow: auto; padding: 26px 28px 26px var(--
 .chips { display: flex; gap: 6px; }
 .chip { cursor: pointer; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px; font: 600 12px/1 inherit; }
 .chip.active { color: var(--text); border-color: rgb(57 167 255 / .6); background: rgb(57 167 255 / .14); }
-.list-head, .row { display: grid; grid-template-columns: 1fr 150px 90px 120px; gap: 12px; align-items: center; }
+.list-head, .row { display: grid; grid-template-columns: 1fr 140px 110px 60px 100px; gap: 12px; align-items: center; }
 .list-head { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; padding: 0 14px 8px; }
 .list { display: flex; flex-direction: column; gap: 6px; }
 .row { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
@@ -138,6 +138,18 @@ main { height: calc(100% - 64px); overflow: auto; padding: 26px 28px 26px var(--
 .row .pl b { font-size: 15px; }
 .row .go { cursor: pointer; border: 0; border-radius: 8px; padding: 9px 12px; color: #fff; font: 700 12px/1 inherit; text-transform: uppercase; background: linear-gradient(135deg, var(--orange), var(--orange-2)); }
 .empty { color: var(--muted); padding: 30px; text-align: center; }
+.refresh { cursor: pointer; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font: 600 12px/1 inherit; white-space: nowrap; }
+.refresh:hover { border-color: rgb(57 167 255 / .6); }
+.refresh:disabled { opacity: .5; cursor: progress; }
+.filters { display: flex; gap: 16px; align-items: center; margin: 0 2px 12px; color: var(--muted); font-size: 12px; }
+.filters label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.filters input { accent-color: var(--orange); }
+.filters .count { margin-left: auto; }
+.row .ping { color: var(--muted); font: 12px Consolas, monospace; }
+.row .ping.good { color: var(--green); }
+.row .ping.bad { color: var(--orange-2); }
+.row.offline { opacity: .45; }
+.row .bots { color: var(--muted); font-size: 11px; }
 
 .toast {
   position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 20px); opacity: 0;

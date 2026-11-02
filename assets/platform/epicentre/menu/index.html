@@ -65,8 +65,16 @@
         <button class="chip" data-list="favorites">Избранное</button>
         <button class="chip" data-list="history">История</button>
       </div>
+      <button class="refresh" id="refresh" title="Обновить список">⟳ Обновить</button>
     </div>
-    <div class="list-head"><span>Сервер</span><span>Карта</span><span>Игроки</span><span></span></div>
+    <div class="filters">
+      <label><input type="checkbox" data-filter="notEmpty"> Не пустые</label>
+      <label><input type="checkbox" data-filter="notFull"> Есть места</label>
+      <label><input type="checkbox" data-filter="noPassword"> Без пароля</label>
+      <label><input type="checkbox" data-filter="noBots"> Без ботов</label>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="list-head"><span>Сервер</span><span>Карта</span><span>Игроки</span><span>Пинг</span><span></span></div>
     <div class="list" id="list"></div>
   </section>
 </main>

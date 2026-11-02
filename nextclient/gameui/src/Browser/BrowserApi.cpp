@@ -2,8 +2,11 @@
 
 #include <windows.h>
 
+#include <chrono>
 #include <map>
+#include <set>
 #include <string>
+#include <vector>
 
 #include <GameServerHelpers.h>
 #include <GameUi.h>
@@ -55,7 +58,8 @@ std::string server_json(const gameserveritem_t& s) {
            ",\"playersOnline\":" + std::to_string(GetHumanPlayerCount(s)) +
            ",\"botsOnline\":" + std::to_string(s.m_nBotPlayers) + ",\"playersMax\":" + std::to_string(s.m_nMaxPlayers) +
            ",\"isPasswordProtected\":" + json_bool(s.m_bPassword) + ",\"isVacSecured\":" + json_bool(s.m_bSecure) +
-           ",\"unixTimeLastPlayed\":" + std::to_string(s.m_ulTimeLastPlayed) + "}";
+           ",\"unixTimeLastPlayed\":" + std::to_string(s.m_ulTimeLastPlayed) +
+           ",\"ping\":" + std::to_string(s.m_nPing) + "}";
 }
 
 // Steam callbacks may arrive outside the frame; replies always go back on the main thread.
@@ -95,9 +99,18 @@ private:
 
 enum class ListKind { Favorites, History, Internet };
 
+class ListQuery;
+std::set<ListQuery*> g_lists;  // running list queries, for the deadline check in BrowserApi_RunFrame
+
+// Answers with the servers that responded so far once the deadline passes: pinging a whole master
+// list takes much longer than a menu should wait.
+constexpr auto kListDeadline = std::chrono::milliseconds(3500);
+
 class ListQuery final : public ISteamMatchmakingServerListResponse {
 public:
-    ListQuery(IBrowserApiReply* reply, ListKind kind) : reply_(reply) {
+    ListQuery(IBrowserApiReply* reply, ListKind kind)
+        : reply_(reply), kind_(kind), deadline_(std::chrono::steady_clock::now() + kListDeadline) {
+        g_lists.insert(this);
         auto app = SteamUtils()->GetAppID();
         auto* mm = SteamMatchmakingServers();
         switch (kind) {
@@ -107,6 +120,7 @@ public:
         }
     }
     ~ListQuery() {
+        g_lists.erase(this);
         if (request_) {
             SteamMatchmakingServers()->CancelQuery(request_);
             SteamMatchmakingServers()->ReleaseRequest(request_);
@@ -115,9 +129,16 @@ public:
     void ServerResponded(HServerListRequest request, int index) override { add(request, index, true); }
     void ServerFailedToRespond(HServerListRequest request, int index) override { add(request, index, false); }
     void RefreshComplete(HServerListRequest, EMatchMakingServerResponse response) override {
-        if (response == eServerFailedToRespond) {
+        finish(response != eServerFailedToRespond || !servers_.empty());
+    }
+    bool expired() const { return std::chrono::steady_clock::now() >= deadline_; }
+    // Answers once (complete, or partial at the deadline) and schedules deletion.
+    void finish(bool ok) {
+        if (done_) return;
+        done_ = true;
+        if (!ok) {
             reject(reply_, 504);
-        } else {  // eServerResponded, or eNoServersListedOnMasterServer: an empty list
+        } else {
             std::string out = "[";
             bool first = true;
             for (auto& [index, item] : servers_) {
@@ -132,14 +153,19 @@ public:
 
 private:
     void add(HServerListRequest request, int index, bool responded) {
+        // The internet list only shows servers that answered; favorites/history keep offline ones.
+        if (!responded && kind_ == ListKind::Internet) return;
         gameserveritem_t* s = SteamMatchmakingServers()->GetServerDetails(request, index);
         if (!s) return;
         servers_[index] = "{\"address\":" + json_string(s->m_NetAdr.GetConnectionAddressString()) +
                           ",\"info\":" + (responded ? server_json(*s) : std::string("null")) + "}";
     }
     IBrowserApiReply* reply_;
+    const ListKind kind_;
+    const std::chrono::steady_clock::time_point deadline_;
     HServerListRequest request_ = nullptr;
     std::map<int, std::string> servers_;
+    bool done_ = false;
 };
 
 // ---- handlers (main thread) ----
@@ -207,6 +233,11 @@ void BrowserApi_Shutdown() {
 }
 
 void BrowserApi_RunFrame() {
+    std::vector<ListQuery*> expired;
+    for (ListQuery* q : g_lists)
+        if (q->expired()) expired.push_back(q);
+    for (ListQuery* q : expired) q->finish(true);
+
     if (g_options_tab.empty()) return;
     std::string tab;
     tab.swap(g_options_tab);

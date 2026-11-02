@@ -79,30 +79,66 @@
   // ---- servers ----
   let listKind = 'internet';
   let listCache = [];
+  const filters = { notEmpty: false, notFull: false, noPassword: false, noBots: false };
+
+  // NextClient lists are [{address, info}] (info null for servers that did not answer);
+  // sample data and getServerInfo are flat. Normalise to flat items.
+  function normalize(item) {
+    if (item && 'info' in item) {
+      const i = item.info || {};
+      return { ...i, address: item.address, offline: !item.info };
+    }
+    return item;
+  }
+
+  function passes(s) {
+    if (s.offline) return !filters.notEmpty && !filters.notFull;
+    if (filters.notEmpty && !(s.playersOnline > 0)) return false;
+    if (filters.notFull && !(s.playersOnline + (s.botsOnline || 0) < s.playersMax)) return false;
+    if (filters.noPassword && s.isPasswordProtected) return false;
+    if (filters.noBots && s.botsOnline > 0) return false;
+    return true;
+  }
+
+  function pingCell(p) {
+    if (p == null) return '<div class="ping">—</div>';
+    return `<div class="ping ${p < 60 ? 'good' : p > 150 ? 'bad' : ''}">${p}</div>`;
+  }
 
   function renderList() {
     const q = $('search').value.trim().toLowerCase();
     const rows = listCache
-      .filter((s) => !q || [s.hostname, s.map, s.address].some((v) => String(v).toLowerCase().includes(q)))
-      .sort((a, b) => (b.address === SERVER) - (a.address === SERVER) || b.playersOnline - a.playersOnline);
+      .filter(passes)
+      .filter((s) => !q || [s.hostname, s.map, s.address].some((v) => String(v || '').toLowerCase().includes(q)))
+      .sort((a, b) => (b.address === SERVER) - (a.address === SERVER) || (b.playersOnline || 0) - (a.playersOnline || 0));
+    $('count').textContent = listCache.length ? `Показано ${rows.length} из ${listCache.length}` : '';
     $('list').innerHTML = rows.length
       ? rows.map((s) => `
-        <div class="row${s.address === SERVER ? ' ours' : ''}">
-          <div><div class="name">${esc(s.hostname)}</div><div class="sub">${esc(s.address)}</div></div>
-          <div class="map">${esc(s.map)}</div>
-          <div class="pl"><b>${s.playersOnline}</b> / ${s.playersMax}</div>
+        <div class="row${s.address === SERVER ? ' ours' : ''}${s.offline ? ' offline' : ''}">
+          <div><div class="name">${esc(s.offline ? 'Сервер не отвечает' : s.hostname)}</div><div class="sub">${esc(s.address)}</div></div>
+          <div class="map">${esc(s.map || '—')}</div>
+          <div class="pl">${s.offline ? '—' : `<b>${s.playersOnline}</b> / ${s.playersMax}${s.botsOnline ? ` <span class="bots">+${s.botsOnline} бот.</span>` : ''}`}</div>
+          ${pingCell(s.offline ? null : s.ping)}
           <button class="go" data-connect="${esc(s.address)}">Играть</button>
         </div>`).join('')
-      : '<div class="empty">Серверы не найдены</div>';
+      : `<div class="empty">${listCache.length ? 'Под фильтры ничего не подходит' : 'Серверы не найдены'}</div>`;
   }
 
+  let loadToken = 0;
   async function loadList() {
+    const token = ++loadToken;
+    $('refresh').disabled = true;
     $('list').innerHTML = '<div class="empty">Загрузка списка…</div>';
+    $('count').textContent = '';
+    let items = [];
     try {
-      listCache = await getList(listKind);
+      items = (await getList(listKind)).map(normalize);
     } catch {
-      listCache = [];
+      items = [];
     }
+    if (token !== loadToken) return;  // a newer refresh started meanwhile
+    listCache = items;
+    $('refresh').disabled = false;
     renderList();
   }
 
@@ -128,6 +164,12 @@
     }
   });
   $('search').addEventListener('input', renderList);
+  $('refresh').addEventListener('click', loadList);
+  document.querySelectorAll('[data-filter]').forEach((box) =>
+    box.addEventListener('change', () => {
+      filters[box.dataset.filter] = box.checked;
+      renderList();
+    }));
 
   const name = nc ? nc.getCvarValue('name') : 'Игрок';
   if (name) $('profile').innerHTML = 'Вы играете как <b>' + esc(name) + '</b>';
