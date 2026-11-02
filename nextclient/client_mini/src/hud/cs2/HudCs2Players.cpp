@@ -67,40 +67,28 @@ unsigned int HudCs2::AvatarOf(uint64_t steam_id)
     return avatars_.Texture(steam_id, static_cast<float>(cl_enginefunc()->GetClientTime()));
 }
 
-bool HudCs2::DrawTopAvatars(const std::vector<PlayerView>& players, float left_edge, float right_edge, float top, float height, float s)
+void HudCs2::DrawTopCounters(int alive_t, int alive_ct, float left_edge, float right_edge, float top, float height, float s)
 {
-    if (players.empty())
-        return false;
+    // CS2's alive badge: the team logo, the count of living players next to it, "живы" under the count
+    float logo = height - 6 * s, ly = top + 3 * s;
+    int npx = Px(30 * s), lpx = Px(11 * s);
+    char buf[8];
 
-    float size = height - 10 * s, gap = 3 * s, y = top + 2 * s;
-    int ipx = Px(size * 0.55f);
-    float left_x = left_edge, right_x = right_edge;
+    // T on the left: [count][logo] ending at left_edge
+    float lx = left_edge - logo;
+    Icon("logo_tr", lx, ly, logo, logo, {255, 255, 255, 240});
+    std::snprintf(buf, sizeof(buf), "%d", alive_t);
+    float nx = lx - 8 * s;
+    text_.Draw(buf, {nx, top + 2 * s}, npx, true, alive_t > 0 ? kTeamT : Alpha(kInk, 90), Cs2Text::Align::Right);
+    label_.Draw("ЖИВЫ", {nx, top + height - lpx - 3 * s}, lpx, true, kInkDim, Cs2Text::Align::Right);
 
-    for (const PlayerView& p : players)
-    {
-        bool t = p.team == goldsrc::cstrike::TEAM_TERRORIST;
-        ncl_math::Color tint = t ? kTeamT : kTeamCT;
-        float x = t ? (left_x -= size + gap) : right_x;
-        if (!t)
-            right_x += size + gap;
-
-        // living players bright with the team bar under them; the dead greyed, without the bar
-        draw_.DrawRect({x - 1 * s, y - 1 * s}, {x + size + 1 * s, y + size + 1 * s}, {0, 0, 0, 170});
-        if (unsigned int tex = AvatarOf(p.steam_id))
-        {
-            draw_.FlushPrims();
-            Cs2Art::DrawTexture(tex, x, y, size, size, p.dead ? ncl_math::Color{90, 90, 90, 150} : ncl_math::Color{255, 255, 255, 255});
-        }
-        else
-        {
-            draw_.DrawRect({x, y}, {x + size, y + size}, p.dead ? ncl_math::Color{50, 50, 54, 200} : Alpha(tint, 150));
-            label_.Draw(Initial(p.name).c_str(), {x + size * 0.5f, y + (size - ipx) * 0.5f - 1 * s}, ipx, true,
-                        p.dead ? Alpha(kInk, 80) : kInk, Cs2Text::Align::Center);
-        }
-        if (!p.dead)
-            draw_.DrawRect({x, y + size + 2 * s}, {x + size, y + size + 5 * s}, tint);
-    }
-    return true;
+    // CT on the right: [logo][count] starting at right_edge
+    float rx = right_edge;
+    Icon("logo_ct", rx, ly, logo, logo, {255, 255, 255, 240});
+    std::snprintf(buf, sizeof(buf), "%d", alive_ct);
+    float cx2 = rx + logo + 8 * s;
+    text_.Draw(buf, {cx2, top + 2 * s}, npx, true, alive_ct > 0 ? kTeamCT : Alpha(kInk, 90));
+    label_.Draw("ЖИВЫ", {cx2, top + height - lpx - 3 * s}, lpx, true, kInkDim);
 }
 
 void HudCs2::DrawSpectatorPanel(float w, float h, float s)

@@ -80,8 +80,8 @@ private:
         bool bomb;
     };
     std::vector<PlayerView> CollectPlayers();
-    // left_edge / right_edge: where the T avatars end and the CT avatars start; false with no players
-    bool DrawTopAvatars(const std::vector<PlayerView>& players, float left_edge, float right_edge, float top, float height, float s);
+    // left_edge / right_edge: where the T block ends and the CT block starts
+    void DrawTopCounters(int alive_t, int alive_ct, float left_edge, float right_edge, float top, float height, float s);
     void DrawSpectatorPanel(float w, float h, float s);
     unsigned int AvatarOf(uint64_t steam_id);
     // corner colours: top-left, top-right, bottom-right, bottom-left

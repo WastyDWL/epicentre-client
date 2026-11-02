@@ -31,6 +31,8 @@ namespace
     // distances from the bottom edge at 1080p: the divider line (emblem centre) and the bars
     constexpr float kLineY = 34.0f;
     constexpr float kBarY = 44.0f;
+    // how far above the divider the health / armor / ammo / money blocks are centred
+    constexpr float kRaise = 26.0f;
 
     ncl_math::Color WithAlpha(ncl_math::Color c, int a)
     {
@@ -295,20 +297,22 @@ void HudCs2::DrawHealthArmor(float cx, float h, float s)
     float w = cx * 2.0f;
     float line_y = h - kLineY * s;
     int big = Px(40 * s);
-    float digits_top = line_y - big * 0.56f;
+    // the blocks stand above the divider (CS2), clear of it
+    float mid = line_y - kRaise * s;
+    float digits_top = mid - big * 0.56f;
 
     char buf[16];
     std::snprintf(buf, sizeof(buf), "%d", health);
-    float hx = w * 0.318f;
+    float hx = w * 0.305f;
     float num_w = text_.Draw(buf, {hx, digits_top}, big, true, ink);
 
     // the health bar under the number: red as in CS2 once it runs low
-    float bar_w = std::max(num_w, 40 * s), bar_y = line_y + big * 0.44f;
+    float bar_w = std::max(num_w, 40 * s), bar_y = line_y - 8 * s;
     draw_.DrawRect({hx, bar_y}, {hx + bar_w, bar_y + 3 * s}, {255, 255, 255, 45});
     draw_.DrawRect({hx, bar_y}, {hx + bar_w * std::min(health, 100) / 100.0f, bar_y + 3 * s}, low ? kLow : WithAlpha(kInk, 230));
 
     // the armor: a shield outline with its value inside (CS2), a dome on top for the helmet
-    float sx = w * 0.297f, sy = line_y - 2 * s;
+    float sx = w * 0.282f, sy = mid;
     float sw = 15 * s, top_y = sy - 16 * s, mid_y = sy + 6 * s, tip_y = sy + 20 * s;
     ncl_math::Color rim = WithAlpha(kInk, st.armor > 0 ? 235 : 120);
     draw_.DrawRect({sx - sw, top_y}, {sx + sw, mid_y}, rim);
@@ -340,10 +344,11 @@ void HudCs2::DrawAmmo(float cx, float h, float s)
     float w = cx * 2.0f;
     float line_y = h - kLineY * s;
     int big = Px(40 * s), small = Px(24 * s);
-    float top = line_y - big * 0.56f, small_top = line_y - small * 0.52f;
+    float mid = line_y - kRaise * s;
+    float top = mid - big * 0.56f, small_top = mid - small * 0.52f;
     char buf[16];
 
-    float x = w * 0.632f;
+    float x = w * 0.655f;
     if (clip >= 0)
     {
         std::snprintf(buf, sizeof(buf), "%d", clip);
@@ -351,7 +356,7 @@ void HudCs2::DrawAmmo(float cx, float h, float s)
         if (reserve >= 0)
         {
             x += 10 * s;
-            draw_.DrawRect({x, line_y - small * 0.36f}, {x + std::max(1.0f, 1.5f * s), line_y + small * 0.34f}, WithAlpha(kInk, 150));
+            draw_.DrawRect({x, mid - small * 0.36f}, {x + std::max(1.0f, 1.5f * s), mid + small * 0.34f}, WithAlpha(kInk, 150));
             x += 9 * s;
             std::snprintf(buf, sizeof(buf), "%d", reserve);
             x += text_.Draw(buf, {x, small_top}, small, true, reserve == 0 ? kLow : WithAlpha(kInk, 200));
@@ -366,11 +371,11 @@ void HudCs2::DrawAmmo(float cx, float h, float s)
 
     // the bullet icon
     float bx = x + 12 * s;
-    if (!Icon("ico_bullet", bx, line_y - 12 * s, 24 * s, 24 * s, WithAlpha(kInk, 210)))
+    if (!Icon("ico_bullet", bx, mid - 12 * s, 24 * s, 24 * s, WithAlpha(kInk, 210)))
     {
         for (int i = 0; i < 3; i++)
         {
-            float yy = line_y - 7 * s + i * 6 * s;
+            float yy = mid - 7 * s + i * 6 * s;
             draw_.DrawRect({bx, yy}, {bx + 14 * s, yy + 3 * s}, WithAlpha(kInk, 190));
         }
     }
@@ -402,18 +407,8 @@ void HudCs2::DrawTopBar(float cx, float s)
         if (!p.dead)
             (p.team == goldsrc::cstrike::TEAM_TERRORIST ? alive_t : alive_ct)++;
     }
-    if (!DrawTopAvatars(players, cx - half - side - 6 * s, cx + half + side + 6 * s, top, height, s))
-    {
-        float logo = 40 * s, ly = top + (height - logo) * 0.5f;
-        Icon("logo_tr", cx - half - side - logo - 6 * s, ly, logo, logo, {255, 255, 255, 240});
-        Icon("logo_ct", cx + half + side + 6 * s, ly, logo, logo, {255, 255, 255, 240});
-    }
-    else
-    {
-        // "3 vs 5" under the clock, as in CS2
-        std::snprintf(buf, sizeof(buf), "%d vs %d", alive_t, alive_ct);
-        label_.Draw(buf, {cx, top + height + 4 * s}, Px(15 * s), true, WithAlpha(kInk, 210), Cs2Text::Align::Center);
-    }
+    // each team's logo with its count of living players beside the score boxes
+    DrawTopCounters(alive_t, alive_ct, cx - half - side - 6 * s, cx + half + side + 6 * s, top, height, s);
 
     // the clock
     draw_.DrawRect({cx - half, top}, {cx + half, top + height}, {0, 0, 0, 170});
@@ -439,5 +434,5 @@ void HudCs2::DrawMoney(float h, float s)
     std::snprintf(buf, sizeof(buf), "$%d", st.money);
     // bottom-left corner, on the divider line's height like CS2
     int px = Px(34 * s);
-    text_.Draw(buf, {20 * s, h - kLineY * s - px * 0.56f}, px, true, kMoney);
+    text_.Draw(buf, {20 * s, h - (kLineY + kRaise) * s - px * 0.56f}, px, true, kMoney);
 }
