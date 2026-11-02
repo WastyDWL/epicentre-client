@@ -173,9 +173,9 @@ void HudCs2::DrawScoreboard(float w, float h, float s)
         map.resize(map.size() - 4);
 
     float icon = 54 * s, iy = y0 + 22 * s;
-    int tn_local = local_team;
-    if (!Icon(tn_local == goldsrc::cstrike::TEAM_TERRORIST ? "logo_tr" : "logo_ct", x0 + pad, iy, icon, icon, {255, 255, 255, 255}))
-        draw_.DrawRect({x0 + pad, iy}, {x0 + pad + icon, iy + icon}, kTeamCT);
+    // the server's own emblem: the team logos already sit beside each team
+    if (!Icon("epicentre_logo", x0 + pad - 4 * s, iy - 4 * s, icon + 8 * s, icon + 8 * s, {255, 255, 255, 255}))
+        draw_.DrawDisc({x0 + pad + icon * 0.5f, iy + icon * 0.5f}, icon * 0.45f, {255, 122, 26, 255});
 
     int title_px = Px(30 * s);
     float tx = x0 + pad + icon + 18 * s;

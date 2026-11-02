@@ -188,23 +188,22 @@ void HudCs2::DrawEmblem(float cx, float h, float s)
     float y = h - kLineY * s;
     float line_y = y;
 
-    // the CS2 divider art: hairline with the team emblem in the middle
     int tn = LocalTeam();
-    if (Icon(tn == goldsrc::cstrike::TEAM_TERRORIST ? "hud_bot_tr" : "hud_bot", cx - 320 * s, y - 80 * s, 640 * s, 160 * s, {255, 255, 255, 235}))
-        return;
-
-    // the divider: two hairlines fading out from the emblem
-    constexpr int kSegments = 8;
-    float span = 400 * s, gap = 36 * s;
-    for (int i = 0; i < kSegments; i++)
-    {
-        float a0 = gap + span * i / kSegments, a1 = gap + span * (i + 1) / kSegments;
-        uint8_t alpha = static_cast<uint8_t>(110 - 12 * i);
-        draw_.DrawRect({cx - a1, line_y}, {cx - a0, line_y + std::max(1.0f, 1.5f * s)}, WithAlpha(kInk, alpha));
-        draw_.DrawRect({cx + a0, line_y}, {cx + a1, line_y + std::max(1.0f, 1.5f * s)}, WithAlpha(kInk, alpha));
-    }
-
     ncl_math::Color team = tn == goldsrc::cstrike::TEAM_TERRORIST ? kTeamT : tn == goldsrc::cstrike::TEAM_CT ? kTeamCT : kNeutral;
+
+    // the divider: one hairline each side, fading out from the emblem (the same for both teams;
+    // the pack's two divider pictures differ in size and emblem)
+    float span = 400 * s, gap = 30 * s, thick = std::max(1.0f, 1.5f * s);
+    ncl_math::Color near_ink = WithAlpha(kInk, 150), far_ink = WithAlpha(kInk, 0);
+    DrawGradient(cx - gap - span, line_y, cx - gap, line_y + thick, far_ink, near_ink, near_ink, far_ink);
+    DrawGradient(cx + gap, line_y, cx + gap + span, line_y + thick, near_ink, far_ink, far_ink, near_ink);
+
+    // the emblem: the team's round logo, as on the scoreboard
+    float logo = 50 * s;
+    draw_.DrawDisc({cx, y}, logo * 0.5f, {10, 10, 12, 200});
+    const char* art = tn == goldsrc::cstrike::TEAM_TERRORIST ? "logo_tr" : tn == goldsrc::cstrike::TEAM_CT ? "logo_ct" : nullptr;
+    if (art && Icon(art, cx - logo * 0.5f, y - logo * 0.5f, logo, logo, {255, 255, 255, 245}))
+        return;
 
     draw_.DrawDisc({cx, y}, 22 * s, {12, 12, 14, 200});
     draw_.DrawRing({cx, y}, 24 * s, 21 * s, WithAlpha(kInk, 220));
