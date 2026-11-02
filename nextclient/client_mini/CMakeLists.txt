@@ -73,6 +73,8 @@ add_library(${PROJECT_NAME} SHARED
         src/hud/HudDeathNotice.h
         src/hud/HudHealth.cpp
         src/hud/HudHealth.h
+        src/hud/cs2/Cs2Art.cpp
+        src/hud/cs2/Cs2Art.h
         src/hud/cs2/Cs2HudState.cpp
         src/hud/cs2/Cs2HudState.h
         src/hud/cs2/Cs2Text.cpp

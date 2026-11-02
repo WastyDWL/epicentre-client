@@ -9,6 +9,7 @@
 #include <ncl_math/aabb.h>
 
 #include "hud/radar/render/RadarDraw.h"
+#include "Cs2Art.h"
 
 namespace
 {
@@ -52,8 +53,11 @@ int Cs2Text::ResolveFont(int px, bool bold)
     if (!service || count_ == (int)fonts_.size())
         return kInvalidTextFont;
 
+    // the bundled StratumNo2 (CS2's HUD digits) when present, else Windows' Bahnschrift
+    const char* bundled = Cs2Art::NumberFace();
+
     TextFontDesc desc{};
-    desc.face = "Bahnschrift";
+    desc.face = bundled ? bundled : "Bahnschrift";
     desc.tall = px;
     desc.weight = bold ? 700 : 500;
     desc.flags = kTextFontAntialias | kTextFontDropShadow;

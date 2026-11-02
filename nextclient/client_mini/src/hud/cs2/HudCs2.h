@@ -6,6 +6,7 @@
 #include "hud/HudBaseHelper.h"
 #include "hud/radar/integration/Performance.h"
 #include "hud/radar/render/RadarDraw.h"
+#include "Cs2Art.h"
 #include "Cs2Text.h"
 
 // CS2-style bottom HUD: armor and health left of a centre emblem, ammo right of it, money in the
@@ -15,6 +16,7 @@ class HudCs2 : public HudBase, public HudBaseHelper
 {
     RadarDrawContext draw_;
     Cs2Text text_;
+    Cs2Art art_;
     goldsrc::cvar_t* enabled_cvar_{};
     goldsrc::cvar_t* crosshair_cvar_{};
 
@@ -41,4 +43,8 @@ private:
     void DrawMoney(float h, float s);
     void DrawEmblem(float cx, float h, float s);
     void DrawTopBar(float cx, float s);
+
+    // Draws one art piece when the HUD folder has it; false lets the caller draw its fallback.
+    bool Icon(const char* name, float x, float y, float w, float h, ncl_math::Color tint);
+    int LocalTeam();
 };

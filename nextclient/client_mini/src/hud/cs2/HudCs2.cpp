@@ -27,6 +27,10 @@ namespace
 
     constexpr int kLowHealth = 25;
 
+    // distances from the bottom edge at 1080p: the divider line (emblem centre) and the bars
+    constexpr float kLineY = 34.0f;
+    constexpr float kBarY = 44.0f;
+
     ncl_math::Color WithAlpha(ncl_math::Color c, int a)
     {
         return {c.r, c.g, c.b, static_cast<uint8_t>(std::clamp(a, 0, 255))};
@@ -95,6 +99,7 @@ bool HudCs2::PrepareGraphics()
     {
         draw_.ResetGl(false);
         text_.Reset();
+        art_.Reset();
         draw_.Prepare(context, nullptr);
     }
     return draw_.CheckPrimsAvailable();
@@ -148,10 +153,31 @@ void HudCs2::DrawBackdrop(float w, float h, float s)
     }
 }
 
+bool HudCs2::Icon(const char* name, float x, float y, float w, float h, ncl_math::Color tint)
+{
+    if (!art_.Has(name))
+        return false;
+    // the art is a fixed-function quad: commit the queued primitives under it first
+    draw_.FlushPrims();
+    art_.Draw(name, x, y, w, h, tint);
+    return true;
+}
+
+int HudCs2::LocalTeam()
+{
+    goldsrc::cl_entity_t* local = cl_enginefunc()->GetLocalPlayer();
+    return local && IsValidClientIndex(local->index) ? cl()->g_PlayerExtraInfo[local->index].teamnumber : 0;
+}
+
 void HudCs2::DrawEmblem(float cx, float h, float s)
 {
-    float y = h - 46 * s;
-    float line_y = h - 30 * s;
+    float y = h - kLineY * s;
+    float line_y = y;
+
+    // the CS2 divider art: hairline with the team emblem in the middle
+    int tn = LocalTeam();
+    if (Icon(tn == goldsrc::cstrike::TEAM_TERRORIST ? "hud_bot_tr" : "hud_bot", cx - 320 * s, y - 80 * s, 640 * s, 160 * s, {255, 255, 255, 235}))
+        return;
 
     // the divider: two hairlines fading out from the emblem
     constexpr int kSegments = 8;
@@ -164,16 +190,7 @@ void HudCs2::DrawEmblem(float cx, float h, float s)
         draw_.DrawRect({cx + a0, line_y}, {cx + a1, line_y + std::max(1.0f, 1.5f * s)}, WithAlpha(kInk, alpha));
     }
 
-    ncl_math::Color team = kNeutral;
-    if (goldsrc::cl_entity_t* local = cl_enginefunc()->GetLocalPlayer())
-    {
-        int index = local->index;
-        if (IsValidClientIndex(index))
-        {
-            int tn = cl()->g_PlayerExtraInfo[index].teamnumber;
-            team = tn == goldsrc::cstrike::TEAM_TERRORIST ? kTeamT : tn == goldsrc::cstrike::TEAM_CT ? kTeamCT : kNeutral;
-        }
-    }
+    ncl_math::Color team = tn == goldsrc::cstrike::TEAM_TERRORIST ? kTeamT : tn == goldsrc::cstrike::TEAM_CT ? kTeamCT : kNeutral;
 
     draw_.DrawDisc({cx, y}, 22 * s, {12, 12, 14, 200});
     draw_.DrawRing({cx, y}, 24 * s, 21 * s, WithAlpha(kInk, 220));
@@ -199,14 +216,17 @@ void HudCs2::DrawHealthArmor(float cx, float h, float s)
 
     // health bar under the number
     float bar_w = std::max(num_w, 92 * s);
-    float bar_y = h - 36 * s;
+    float bar_y = h - kBarY * s;
     draw_.DrawRect({right - bar_w, bar_y}, {right, bar_y + 3 * s}, {255, 255, 255, 40});
     draw_.DrawRect({right - bar_w, bar_y}, {right - bar_w + bar_w * std::min(health, 100) / 100.0f, bar_y + 3 * s}, ink);
 
     // cross icon
     float ix = right - bar_w - 26 * s, iy = top + big * 0.55f, arm = 11 * s, thick = 3.5f * s;
-    draw_.DrawRect({ix - arm, iy - thick}, {ix + arm, iy + thick}, WithAlpha(ink, 230));
-    draw_.DrawRect({ix - thick, iy - arm}, {ix + thick, iy + arm}, WithAlpha(ink, 230));
+    if (!Icon("ico_health", ix - 14 * s, iy - 14 * s, 28 * s, 28 * s, WithAlpha(ink, 235)))
+    {
+        draw_.DrawRect({ix - arm, iy - thick}, {ix + arm, iy + thick}, WithAlpha(ink, 230));
+        draw_.DrawRect({ix - thick, iy - arm}, {ix + thick, iy + arm}, WithAlpha(ink, 230));
+    }
 
     // armor: shield and value, further left
     int small = Px(32 * s);
@@ -218,6 +238,8 @@ void HudCs2::DrawHealthArmor(float cx, float h, float s)
     float sx = armor_right - armor_w - 18 * s, sy = armor_top + small * 0.5f;
     float sw = 9 * s, sh = 7 * s;
     ncl_math::Color shield = WithAlpha(st.armor > 0 ? kInk : kInkDim, 220);
+    if (Icon(st.helmet ? "ico_armorhelm" : "ico_armor", sx - 16 * s, sy - 16 * s, 32 * s, 32 * s, shield))
+        return;
     draw_.DrawRect({sx - sw, sy - sh - 2 * s}, {sx + sw, sy + 2 * s}, shield);
     draw_.DrawTriangle({sx - sw, sy + 2 * s}, {sx + sw, sy + 2 * s}, {sx, sy + 13 * s}, shield);
     if (st.helmet)
@@ -261,14 +283,17 @@ void HudCs2::DrawAmmo(float cx, float h, float s)
 
     // bullets icon
     float bx = x + 16 * s, by = top + big * 0.36f;
-    for (int i = 0; i < 3; i++)
+    if (!Icon("ico_bullet", bx - 2 * s, top + big * 0.55f - 15 * s, 30 * s, 30 * s, WithAlpha(kInkDim, 230)))
     {
-        float yy = by + i * 7 * s;
-        draw_.DrawRect({bx, yy}, {bx + 16 * s, yy + 3.5f * s}, WithAlpha(kInkDim, 200));
+        for (int i = 0; i < 3; i++)
+        {
+            float yy = by + i * 7 * s;
+            draw_.DrawRect({bx, yy}, {bx + 16 * s, yy + 3.5f * s}, WithAlpha(kInkDim, 200));
+        }
     }
 
     // a thin bar under the ammo, mirroring the health bar
-    float bar_y = h - 36 * s;
+    float bar_y = h - kBarY * s;
     draw_.DrawRect({left, bar_y}, {left + std::max(x - left, 92 * s), bar_y + 3 * s}, {255, 255, 255, 40});
 }
 
@@ -289,6 +314,11 @@ void HudCs2::DrawTopBar(float cx, float s)
     text_.Draw(buf, {cx - half - side * 0.5f - 1 * s, top + 8 * s}, score_px, true, kTeamT, Cs2Text::Align::Center);
     std::snprintf(buf, sizeof(buf), "%d", st.score_ct);
     text_.Draw(buf, {cx + half + side * 0.5f + 1 * s, top + 8 * s}, score_px, true, kTeamCT, Cs2Text::Align::Center);
+
+    // team logos outside the score boxes
+    float logo = 40 * s, ly = top + (height - logo) * 0.5f;
+    Icon("logo_tr", cx - half - side - logo - 6 * s, ly, logo, logo, {255, 255, 255, 240});
+    Icon("logo_ct", cx + half + side + 6 * s, ly, logo, logo, {255, 255, 255, 240});
 
     // the clock
     draw_.DrawRect({cx - half, top}, {cx + half, top + height}, {0, 0, 0, 170});
