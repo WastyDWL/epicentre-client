@@ -124,7 +124,10 @@ void HudCs2::Draw(float time)
         return;
     if (!PrepareGraphics())
         return;
-    bool alive = !m_fPlayerDead && (m_iWeaponBits & (1 << goldsrc::cstrike::WEAPON_SUIT)) && !cl_enginefunc()->IsSpectateOnly();
+    // in-eye spectating looks alive to the HUD (it carries the followed player's state): the observer
+    // mode decides, and the spectator panel takes over
+    bool alive = !m_fPlayerDead && (m_iWeaponBits & (1 << goldsrc::cstrike::WEAPON_SUIT)) && !cl_enginefunc()->IsSpectateOnly() &&
+                 g_iUser1 == 0;
 
     int iw, ih;
     GetScreenResolution(iw, ih);
@@ -287,49 +290,38 @@ void HudCs2::DrawHealthArmor(float cx, float h, float s)
     bool low = health <= kLowHealth;
     ncl_math::Color ink = low ? kLow : kInk;
 
-    int big = Px(54 * s);
-    float top = h - 96 * s;
-    float right = cx - 64 * s;
+    // CS2's places, as fractions of the screen width: the armor shield at 0.297 with its value
+    // inside, the health from 0.318, both centred on the divider line
+    float w = cx * 2.0f;
+    float line_y = h - kLineY * s;
+    int big = Px(40 * s);
+    float digits_top = line_y - big * 0.56f;
 
     char buf[16];
     std::snprintf(buf, sizeof(buf), "%d", health);
-    float num_w = text_.Measure(buf, big, true);
-    text_.Draw(buf, {right, top}, big, true, ink, Cs2Text::Align::Right);
+    float hx = w * 0.318f;
+    float num_w = text_.Draw(buf, {hx, digits_top}, big, true, ink);
 
-    // health bar under the number
-    float bar_w = std::max(num_w, 92 * s);
-    float bar_y = h - kBarY * s;
-    draw_.DrawRect({right - bar_w, bar_y}, {right, bar_y + 3 * s}, {255, 255, 255, 40});
-    draw_.DrawRect({right - bar_w, bar_y}, {right - bar_w + bar_w * std::min(health, 100) / 100.0f, bar_y + 3 * s}, ink);
+    // the health bar under the number: red as in CS2 once it runs low
+    float bar_w = std::max(num_w, 40 * s), bar_y = line_y + big * 0.44f;
+    draw_.DrawRect({hx, bar_y}, {hx + bar_w, bar_y + 3 * s}, {255, 255, 255, 45});
+    draw_.DrawRect({hx, bar_y}, {hx + bar_w * std::min(health, 100) / 100.0f, bar_y + 3 * s}, low ? kLow : WithAlpha(kInk, 230));
 
-    // cross icon
-    float ix = right - bar_w - 26 * s, iy = top + big * 0.55f, arm = 11 * s, thick = 3.5f * s;
-    if (!Icon("ico_health", ix - 14 * s, iy - 14 * s, 28 * s, 28 * s, WithAlpha(ink, 235)))
-    {
-        draw_.DrawRect({ix - arm, iy - thick}, {ix + arm, iy + thick}, WithAlpha(ink, 230));
-        draw_.DrawRect({ix - thick, iy - arm}, {ix + thick, iy + arm}, WithAlpha(ink, 230));
-    }
-
-    // armor: shield and value, further left
-    int small = Px(32 * s);
-    float armor_right = ix - 46 * s;
-    std::snprintf(buf, sizeof(buf), "%d", std::clamp(st.armor, 0, 999));
-    float armor_top = top + (big - small) * 0.72f;
-    float armor_w = text_.Draw(buf, {armor_right, armor_top}, small, true, st.armor > 0 ? kInk : kInkDim, Cs2Text::Align::Right);
-
-    // a filled shield like CS2's: the pack's outline icon thins away at HUD size
-    float sx = armor_right - armor_w - 20 * s, sy = armor_top + small * 0.42f;
-    float sw = 11 * s, sh = 9 * s;
-    ncl_math::Color shield = WithAlpha(kInk, st.armor > 0 ? 240 : 150);
-    draw_.DrawRect({sx - sw, sy - sh}, {sx + sw, sy + 3 * s}, shield);
-    draw_.DrawTriangle({sx - sw, sy + 3 * s}, {sx + sw, sy + 3 * s}, {sx, sy + 16 * s}, shield);
-    // a darker inner shape gives the shield its rim
-    float in = 3 * s;
-    ncl_math::Color face{30, 30, 32, static_cast<uint8_t>(st.armor > 0 ? 150 : 110)};
-    draw_.DrawRect({sx - sw + in, sy - sh + in}, {sx + sw - in, sy + 3 * s}, face);
-    draw_.DrawTriangle({sx - sw + in, sy + 3 * s}, {sx + sw - in, sy + 3 * s}, {sx, sy + 16 * s - in * 1.6f}, face);
+    // the armor: a shield outline with its value inside (CS2), a dome on top for the helmet
+    float sx = w * 0.297f, sy = line_y - 2 * s;
+    float sw = 15 * s, top_y = sy - 16 * s, mid_y = sy + 6 * s, tip_y = sy + 20 * s;
+    ncl_math::Color rim = WithAlpha(kInk, st.armor > 0 ? 235 : 120);
+    draw_.DrawRect({sx - sw, top_y}, {sx + sw, mid_y}, rim);
+    draw_.DrawTriangle({sx - sw, mid_y}, {sx + sw, mid_y}, {sx, tip_y}, rim);
+    float in = 2.2f * s;
+    ncl_math::Color face{18, 18, 20, 210};
+    draw_.DrawRect({sx - sw + in, top_y + in}, {sx + sw - in, mid_y}, face);
+    draw_.DrawTriangle({sx - sw + in, mid_y}, {sx + sw - in, mid_y}, {sx, tip_y - in * 1.8f}, face);
     if (st.helmet)
-        draw_.DrawDisc({sx, sy - sh - 1 * s}, 6 * s, shield); // the helmet's dome over the shield
+        draw_.DrawRect({sx - sw * 0.55f, top_y - 4 * s}, {sx + sw * 0.55f, top_y - 1.5f * s}, rim);
+    std::snprintf(buf, sizeof(buf), "%d", std::clamp(st.armor, 0, 999));
+    int apx = Px(16 * s);
+    text_.Draw(buf, {sx, sy - apx * 0.62f}, apx, true, st.armor > 0 ? kInk : kInkDim, Cs2Text::Align::Center);
 }
 
 void HudCs2::DrawAmmo(float cx, float h, float s)
@@ -343,21 +335,26 @@ void HudCs2::DrawAmmo(float cx, float h, float s)
     if (clip < 0 && reserve < 0)
         return; // knife
 
-    int big = Px(54 * s), small = Px(30 * s);
-    float top = h - 96 * s;
-    float left = cx + 64 * s;
+    // CS2's places: the clip from 0.632 of the width, then "| reserve" smaller and the bullets,
+    // centred on the divider line
+    float w = cx * 2.0f;
+    float line_y = h - kLineY * s;
+    int big = Px(40 * s), small = Px(24 * s);
+    float top = line_y - big * 0.56f, small_top = line_y - small * 0.52f;
     char buf[16];
 
-    float x = left;
+    float x = w * 0.632f;
     if (clip >= 0)
     {
         std::snprintf(buf, sizeof(buf), "%d", clip);
         x += text_.Draw(buf, {x, top}, big, true, clip == 0 ? kLow : kInk);
         if (reserve >= 0)
         {
+            x += 10 * s;
+            draw_.DrawRect({x, line_y - small * 0.36f}, {x + std::max(1.0f, 1.5f * s), line_y + small * 0.34f}, WithAlpha(kInk, 150));
+            x += 9 * s;
             std::snprintf(buf, sizeof(buf), "%d", reserve);
-            x += 12 * s;
-            x += text_.Draw(buf, {x, top + (big - small) * 0.72f}, small, true, reserve == 0 ? kLow : kInkDim);
+            x += text_.Draw(buf, {x, small_top}, small, true, reserve == 0 ? kLow : WithAlpha(kInk, 200));
         }
     }
     else
@@ -367,20 +364,16 @@ void HudCs2::DrawAmmo(float cx, float h, float s)
         x += text_.Draw(buf, {x, top}, big, true, kInk);
     }
 
-    // bullets icon
-    float bx = x + 16 * s, by = top + big * 0.36f;
-    if (!Icon("ico_bullet", bx - 2 * s, top + big * 0.55f - 15 * s, 30 * s, 30 * s, WithAlpha(kInkDim, 230)))
+    // the bullet icon
+    float bx = x + 12 * s;
+    if (!Icon("ico_bullet", bx, line_y - 12 * s, 24 * s, 24 * s, WithAlpha(kInk, 210)))
     {
         for (int i = 0; i < 3; i++)
         {
-            float yy = by + i * 7 * s;
-            draw_.DrawRect({bx, yy}, {bx + 16 * s, yy + 3.5f * s}, WithAlpha(kInkDim, 200));
+            float yy = line_y - 7 * s + i * 6 * s;
+            draw_.DrawRect({bx, yy}, {bx + 14 * s, yy + 3 * s}, WithAlpha(kInk, 190));
         }
     }
-
-    // a thin bar under the ammo, mirroring the health bar
-    float bar_y = h - kBarY * s;
-    draw_.DrawRect({left, bar_y}, {left + std::max(x - left, 92 * s), bar_y + 3 * s}, {255, 255, 255, 40});
 }
 
 void HudCs2::DrawTopBar(float cx, float s)
@@ -444,5 +437,7 @@ void HudCs2::DrawMoney(float h, float s)
         return;
     char buf[24];
     std::snprintf(buf, sizeof(buf), "$%d", st.money);
-    text_.Draw(buf, {28 * s, h - 72 * s}, Px(40 * s), true, kMoney);
+    // bottom-left corner, on the divider line's height like CS2
+    int px = Px(34 * s);
+    text_.Draw(buf, {20 * s, h - kLineY * s - px * 0.56f}, px, true, kMoney);
 }

@@ -121,20 +121,22 @@ void HudCs2::DrawSpectatorPanel(float w, float h, float s)
     if (!p)
         return;
 
+
     bool t = p->team == goldsrc::cstrike::TEAM_TERRORIST;
     ncl_math::Color tint = t ? kTeamT : kTeamCT;
+    bool in_eye = g_iUser1 == kObsInEye;
     float cx = w * 0.5f;
-    float plate_w = 560 * s, plate_h = 58 * s, py = h - 30 * s - plate_h;
-    float av = 76 * s, ay = py + plate_h - av + 6 * s;
 
-    // the plate: dark in the middle, fading towards the ends, a hairline of the team colour on top
-    DrawGradient(cx - plate_w * 0.5f, py, cx, py + plate_h, {0, 0, 0, 0}, {10, 10, 12, 210}, {10, 10, 12, 220}, {0, 0, 0, 0});
-    DrawGradient(cx, py, cx + plate_w * 0.5f, py + plate_h, {10, 10, 12, 210}, {0, 0, 0, 0}, {0, 0, 0, 0}, {10, 10, 12, 220});
-    DrawGradient(cx - plate_w * 0.5f, py, cx, py + 2 * s, Alpha(tint, 0), Alpha(tint, 220), Alpha(tint, 220), Alpha(tint, 0));
-    DrawGradient(cx, py, cx + plate_w * 0.5f, py + 2 * s, Alpha(tint, 220), Alpha(tint, 0), Alpha(tint, 0), Alpha(tint, 220));
+    // In-eye, CS 1.6 tells the spectator the followed player's weapon (CurWeapon) but not its health
+    // or ammo, so only the weapon is shown; health comes from the scoreboard data when known.
 
-    // the avatar in the middle, framed in the team colour
-    float ax = cx - av * 0.5f;
+    // the plate between them (CS2: 0.385..0.615 of the width), the team colour fading in from the left
+    float x0 = w * 0.385f, x1 = w * 0.615f, y1 = h - 12 * s, y0 = y1 - 50 * s;
+    DrawGradient(x0, y0, x1, y1, Alpha(tint, 95), {14, 14, 18, 215}, {10, 10, 12, 230}, Alpha(tint, 60));
+    draw_.DrawRect({x0, y0}, {x1, y0 + std::max(1.0f, 1.2f * s)}, Alpha(tint, 200));
+
+    // the avatar in the middle, standing out above the plate, framed in the team colour
+    float av = 62 * s, ax = cx - av * 0.5f, ay = y1 - av;
     draw_.DrawRect({ax - 3 * s, ay - 3 * s}, {ax + av + 3 * s, ay + av + 3 * s}, tint);
     if (unsigned int tex = AvatarOf(p->steam_id))
     {
@@ -148,34 +150,43 @@ void HudCs2::DrawSpectatorPanel(float w, float h, float s)
         label_.Draw(Initial(p->name).c_str(), {cx, ay + (av - ipx) * 0.5f - 2 * s}, ipx, true, tint, Cs2Text::Align::Center);
     }
 
-    // left of the avatar: the name and the score line; right of it: health
-    float inner = av * 0.5f + 18 * s;
-    int npx = Px(22 * s);
-    std::string name = label_.Fit(p->name.c_str(), npx, true, plate_w * 0.5f - inner - 10 * s);
-    label_.Draw(name.c_str(), {cx - inner, py + 7 * s}, npx, true, tint, Cs2Text::Align::Right);
+    // left half: the name and the score line
+    float pad = 12 * s, half = (x1 - x0) * 0.5f - av * 0.5f - pad * 2;
+    int npx = Px(19 * s);
+    std::string name = label_.Fit(p->name.c_str(), npx, true, half);
+    label_.Draw(name.c_str(), {x0 + pad, y0 + 6 * s}, npx, true, tint);
     char buf[48];
     std::snprintf(buf, sizeof(buf), "У %d  ·  С %d", p->frags, p->deaths);
-    label_.Draw(buf, {cx - inner, py + 9 * s + npx}, Px(15 * s), false, kInkDim, Cs2Text::Align::Right);
+    label_.Draw(buf, {x0 + pad, y0 + 9 * s + npx}, Px(13 * s), false, kInkDim);
 
+    // right half: the weapon (known in-eye) or the health, and C4
+    static const char* const kWeapons[] = {
+        "", "P228", "Glock", "Scout", "HE-граната", "XM1014", "C4", "MAC-10", "AUG", "Дымовая", "Dual Elites",
+        "Five-SeveN", "UMP-45", "SG 550", "Galil", "FAMAS", "USP", "Glock-18", "AWP", "MP5", "M249", "M3", "M4A1",
+        "TMP", "G3SG1", "Флешка", "Desert Eagle", "SG 552", "AK-47", "Нож", "P90"};
+    const Cs2HudState& st = Cs2State();
+    const char* right = nullptr;
+    if (p->dead)
+        right = "мёртв";
+    else if (in_eye && st.weapon > 0 && st.weapon < static_cast<int>(std::size(kWeapons)))
+        right = kWeapons[st.weapon];
+    float line2 = y0 + 6 * s;
+    if (right)
+    {
+        label_.Draw(right, {x1 - pad, line2}, Px(17 * s), true, p->dead ? kLow : kInk, Cs2Text::Align::Right);
+        line2 += 22 * s;
+    }
+    float bomb_right = x1 - pad;
+    if (!p->dead && p->health > 0)
+    {
+        std::snprintf(buf, sizeof(buf), "%d HP", p->health);
+        float hw = text_.Draw(buf, {x1 - pad, line2}, Px(16 * s), true, p->health <= 25 ? kLow : kInkDim, Cs2Text::Align::Right);
+        bomb_right -= hw + 8 * s;
+    }
     if (p->bomb)
     {
-        float bx = cx + inner, by = py + 34 * s;
-        draw_.DrawRect({bx, by}, {bx + 30 * s, by + 18 * s}, {230, 118, 48, 255});
-        label_.Draw("C4", {bx + 15 * s, by + 2 * s}, Px(13 * s), true, {24, 14, 6, 255}, Cs2Text::Align::Center);
-    }
-    if (p->health > 0 && !p->dead)
-    {
-        int hpx = Px(36 * s);
-        float hx = cx + inner + 24 * s, hy = py + (plate_h - hpx) * 0.5f - 6 * s;
-        float arm = 9 * s, th = 3 * s, ix = cx + inner + 6 * s, iy = hy + hpx * 0.55f;
-        ncl_math::Color ink = p->health <= 25 ? kLow : kInk;
-        draw_.DrawRect({ix - arm, iy - th}, {ix + arm, iy + th}, ink);
-        draw_.DrawRect({ix - th, iy - arm}, {ix + th, iy + arm}, ink);
-        std::snprintf(buf, sizeof(buf), "%d", p->health);
-        text_.Draw(buf, {hx, hy}, hpx, true, ink);
-    }
-    else if (p->dead)
-    {
-        label_.Draw("мёртв", {cx + inner, py + (plate_h - Px(18 * s)) * 0.5f}, Px(18 * s), true, kLow);
+        float bx = bomb_right - 30 * s, by = y0 + 28 * s;
+        draw_.DrawRect({bx, by}, {bx + 30 * s, by + 16 * s}, {230, 118, 48, 255});
+        label_.Draw("C4", {bx + 15 * s, by + 1 * s}, Px(12 * s), true, {24, 14, 6, 255}, Cs2Text::Align::Center);
     }
 }

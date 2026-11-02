@@ -313,6 +313,12 @@ static void CL_CreateMoveHandler(float frametime, goldsrc::usercmd_t* cmd, int a
     next->Invoke(frametime, cmd, active);
 
     CL_CreateMove_InvertMousePost(frametime, cmd, active);
+
+    // The server sends player pings only to clients holding IN_SCORE, which client.dll's own
+    // +showscores sets; the CS2 board replaces that command, so it sets the bit itself.
+    constexpr int kInScore = 1 << 15;
+    if (Cs2State().scoreboard_held)
+        cmd->buttons |= kInScore;
 }
 
 static void HUD_ProcessPlayerStateHandler(goldsrc::entity_state_t* dst, const goldsrc::entity_state_t* src, HUD_ProcessPlayerStateNext next)

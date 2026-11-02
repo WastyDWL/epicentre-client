@@ -216,6 +216,16 @@ namespace
         return 0;
     }
 
+    // cl_hud_cs2_dump 1: one listing of the visible vgui2 panels to the console (finding stock panels)
+    void DumpPanels(vgui2::IPanel& panels, vgui2::VPANEL panel, int depth)
+    {
+        if (!panel || !panels.IsVisible(panel) || depth > 3)
+            return;
+        gEngfuncs.Con_Printf("[cs2] %*s%s (%s)\n", depth * 2, "", panels.GetName(panel), panels.GetClassName(panel));
+        for (int i = 0, n = panels.GetChildCount(panel); i < n; i++)
+            DumpPanels(panels, panels.GetChild(panel, i), depth + 1);
+    }
+
     vgui2::VPANEL FindVisibleScoreboard(vgui2::IPanel& panels, vgui2::VPANEL panel)
     {
         return FindVisiblePanel(panels, panel, "ClientScoreBoard");
@@ -274,11 +284,20 @@ void Cs2HudState_SyncStockScoreboard()
     vgui2::VPANEL root = static_cast<vgui2::ISurface*>(*surface)->GetEmbeddedPanel();
 
     // the stock spectator bars cover the bottom of the screen, where the CS2 spectator panel sits
+    static goldsrc::cvar_t* dump = gEngfuncs.pfnRegisterVariable("cl_hud_cs2_dump", "0", 0);
     for (int i = 0, n = panels->GetChildCount(root); i < n; i++)
     {
-        if (vgui2::VPANEL spec = FindVisiblePanel(*panels, panels->GetChild(root, i), "specgui"))
-            panels->SetVisible(spec, false);
+        vgui2::VPANEL child = panels->GetChild(root, i);
+        if (dump && dump->value != 0.0f)
+            DumpPanels(*panels, child, 0);
+        for (const char* name : {"specgui", "SpectatorGUI", "specmenu"})
+        {
+            if (vgui2::VPANEL spec = FindVisiblePanel(*panels, child, name))
+                panels->SetVisible(spec, false);
+        }
     }
+    if (dump && dump->value != 0.0f)
+        dump->value = 0.0f;
 
     for (int i = 0, n = panels->GetChildCount(root); i < n; i++)
     {
