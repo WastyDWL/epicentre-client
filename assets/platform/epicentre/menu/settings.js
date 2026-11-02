@@ -94,6 +94,12 @@
         ] },
       ] },
       { id: 'hud', title: 'Интерфейс', groups: [
+        // client_mini's CS2 look: each part can go back to the stock one
+        { title: 'Стиль интерфейса', rows: [
+          { type: 'select', cvar: 'cl_hud_cs2', label: 'HUD (здоровье, патроны, деньги, счёт, таблица Tab)', def: '1', options: [['1', 'Новый (CS2)'], ['0', 'Классический']] },
+          { type: 'select', cvar: 'cl_hud_cs2_cards', label: 'Карточки убийств', def: '1', options: [['1', 'Как в CS2'], ['2', 'Классические тузы'], ['0', 'Без карточек']] },
+          { type: 'select', cvar: 'cl_buy_cs2', label: 'Меню закупки', def: '1', options: [['1', 'Новое (CS2)'], ['0', 'Классическое']] },
+        ] },
         { title: 'Профиль', rows: [
           { type: 'text', cvar: 'name', label: 'Имя игрока', max: 31 },
         ] },
