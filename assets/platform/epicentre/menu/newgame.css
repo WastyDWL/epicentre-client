@@ -1,0 +1,95 @@
+/* "New game" page, CS2 play-screen style: map grid + settings column + start button */
+.newgame { --st-font: "Bahnschrift SemiCondensed", "Bahnschrift", "Segoe UI", sans-serif; background: linear-gradient(180deg, rgb(8 10 20 / .55), rgb(8 10 20 / .25)); }
+
+.ng-head {
+  position: relative; display: flex; align-items: center; justify-content: center; gap: 18px;
+  height: 56px; padding: 0 24px; border-bottom: 1px solid var(--line); background: rgb(6 8 16 / .55);
+}
+.ng-head h2 {
+  position: absolute; left: 24px; margin: 0; font: 700 20px/1 var(--st-font); letter-spacing: .08em; text-transform: uppercase;
+}
+.ng-head .st-search { left: auto; right: 24px; }
+.ng-filters { display: flex; gap: 4px; }
+.ng-filter {
+  cursor: pointer; border: 0; background: none; color: rgb(233 236 245 / .72); border-radius: 4px; padding: 9px 14px;
+  font: 600 14px/1 var(--st-font); letter-spacing: .06em; text-transform: uppercase;
+}
+.ng-filter:hover { color: #fff; background: rgb(255 255 255 / .06); }
+.ng-filter.on { color: #fff; background: linear-gradient(135deg, rgb(255 122 26 / .85), rgb(255 77 46 / .85)); }
+
+.ng-main { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 400px; }
+.ng-maps { overflow-y: auto; padding: 20px 24px 30px; }
+.ng-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+
+.ng-card {
+  position: relative; height: 128px; cursor: pointer; overflow: hidden; text-align: left;
+  display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; padding: 12px 14px;
+  border-radius: 6px; border: 1px solid rgb(255 255 255 / .1); color: #fff;
+  background: var(--card-bg); box-shadow: 0 8px 22px rgb(0 0 0 / .3);
+  transition: transform .12s ease, border-color .12s ease;
+}
+.ng-card::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    repeating-linear-gradient(135deg, rgb(255 255 255 / .035) 0 2px, transparent 2px 14px),
+    linear-gradient(180deg, transparent 30%, rgb(0 0 0 / .65));
+}
+.ng-card > * { position: relative; }
+.ng-card:hover { transform: translateY(-2px); border-color: rgb(255 255 255 / .35); }
+.ng-card.on { border-color: var(--orange); box-shadow: 0 0 0 2px var(--orange), 0 10px 26px rgb(255 90 30 / .25); }
+.ng-card.on::after {
+  content: "✓"; position: absolute; top: 10px; right: 10px; width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center; font: 700 14px/1 "Segoe UI"; background: var(--orange);
+}
+.k-de { --card-bg: linear-gradient(135deg, #6b4a26, #2c1d12); }
+.k-cs { --card-bg: linear-gradient(135deg, #22466e, #121d2e); }
+.k-as { --card-bg: linear-gradient(135deg, #2f5a37, #142318); }
+.k-other { --card-bg: linear-gradient(135deg, #4a3266, #1b1428); }
+.k-random { --card-bg: linear-gradient(135deg, #ff7a1a, #b3311d); }
+.ng-mode { color: rgb(255 255 255 / .7); font: 600 11px/1 var(--st-font); letter-spacing: .1em; text-transform: uppercase; }
+.ng-name { font: 700 22px/1.05 var(--st-font); letter-spacing: .03em; text-transform: uppercase; }
+.ng-file { color: rgb(255 255 255 / .5); font: 12px Consolas, monospace; }
+
+.ng-side { display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--line); background: rgb(6 8 16 / .45); }
+.ng-opts { flex: 1; overflow-y: auto; padding: 4px 20px 20px; }
+.ng-section h3 { margin: 18px 0 4px; color: rgb(233 236 245 / .5); font: 600 14px/1 var(--st-font); letter-spacing: .06em; text-transform: uppercase; }
+.ng-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 46px; padding: 5px 0; border-bottom: 1px solid rgb(255 255 255 / .07);
+}
+.ng-row .st-label { font-size: 14px; }
+.ng-row.ng-col, .ng-wrow { flex-direction: column; align-items: stretch; gap: 8px; padding: 10px 0; }
+.ng-row.off { opacity: .35; pointer-events: none; }
+.ng-text { width: 190px; }
+.ng-range { width: 130px; }
+.ng-num { width: 64px; }
+.ng-row .st-dd-btn { min-width: 120px; font-size: 15px; }
+
+.ng-seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.ng-seg button, .ng-weapons button {
+  cursor: pointer; border-radius: 4px; padding: 8px 4px; color: rgb(233 236 245 / .75);
+  background: rgb(255 255 255 / .05); border: 1px solid var(--line); font: 600 12px/1 var(--st-font); letter-spacing: .04em; text-transform: uppercase;
+}
+.ng-seg button:hover, .ng-weapons button:hover { color: #fff; border-color: rgb(255 255 255 / .3); }
+.ng-seg button.on { color: #fff; border-color: transparent; background: linear-gradient(135deg, rgb(255 122 26 / .85), rgb(255 77 46 / .85)); }
+.ng-weapons { display: flex; flex-wrap: wrap; gap: 4px; }
+.ng-weapons button { padding: 7px 9px; }
+.ng-weapons button.on { color: #fff; border-color: rgb(53 208 127 / .6); background: rgb(53 208 127 / .14); }
+
+.ng-go {
+  display: flex; align-items: center; gap: 14px; padding: 14px 20px;
+  border-top: 1px solid var(--line); background: rgb(6 8 16 / .65);
+}
+.ng-sel { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.ng-sel span { color: var(--muted); font: 600 11px/1 var(--st-font); letter-spacing: .1em; text-transform: uppercase; }
+.ng-sel b { font: 700 18px/1 var(--st-font); letter-spacing: .03em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ng-start {
+  cursor: pointer; border: 0; border-radius: 6px; padding: 16px 34px; color: #fff;
+  font: 700 20px/1 var(--st-font); letter-spacing: .1em; text-transform: uppercase;
+  background: linear-gradient(135deg, #3fd47f, #1f9c55); box-shadow: 0 10px 26px rgb(40 190 100 / .3);
+  transition: filter .12s ease, transform .12s ease;
+}
+.ng-start:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.ng-start:disabled { opacity: .5; cursor: progress; transform: none; }
+
+@media (max-width: 1100px) { .ng-main { grid-template-columns: 1fr 340px; } .ng-filter { padding: 9px 9px; font-size: 13px; } }

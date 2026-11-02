@@ -1,7 +1,7 @@
 /* Options screen, CS2-like: centred category bar, sub-tabs, label/value rows */
 .page.settings { max-width: none; margin: 0; }
-body.settings-open main { padding: 0; overflow: hidden; display: flex; }
-body.settings-open .page.settings.active { display: flex; flex-direction: column; width: 100%; height: 100%; }
+body.fullpage main { padding: 0; overflow: hidden; display: flex; }
+body.fullpage .page.fullpage.active { display: flex; flex-direction: column; width: 100%; height: 100%; max-width: none; margin: 0; }
 
 .settings {
   --st-font: "Bahnschrift SemiCondensed", "Bahnschrift", "Segoe UI", sans-serif;

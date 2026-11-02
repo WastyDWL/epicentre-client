@@ -467,7 +467,7 @@
 
   // ---- events ----
   function closeDropdowns(except) {
-    document.querySelectorAll('.st-dd.open').forEach((d) => d !== except && d.classList.remove('open'));
+    document.querySelectorAll('#page-settings .st-dd.open').forEach((d) => d !== except && d.classList.remove('open'));
   }
 
   function rowOf(cvar) {

@@ -3,8 +3,11 @@
 #include <windows.h>
 #include <shellapi.h>
 
+#include <algorithm>
 #include <chrono>
+#include <iterator>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -22,6 +25,7 @@
 
 #include "BasePanel.h"
 #include "MainMenuBrowser.h"
+#include "ModInfo.h"
 
 namespace {
 
@@ -448,6 +452,127 @@ void on_bind_key(void*, const char*, const char* arg, const char* frame_url, IBr
     reply->Resolve("true");
 }
 
+// ---- "New game" page: the map list and a listen server start (the vgui CreateServer dialog) ----
+
+void collect_maps(const char* path_id, std::set<std::string>& out) {
+    const char* filter = ModInfo().GetMPFilter();
+    FileFindHandle_t handle = 0;
+    for (const char* f = g_pFullFileSystem->FindFirst("maps/*.bsp", &handle, path_id); f; f = g_pFullFileSystem->FindNext(handle)) {
+        std::string name = f;
+        size_t slash = name.find_last_of("/\\");
+        if (slash != std::string::npos) name = name.substr(slash + 1);
+        if (name.size() > 4 && _stricmp(name.c_str() + name.size() - 4, ".bsp") == 0) name.resize(name.size() - 4);
+        if (name.empty() || (filter && filter[0] && name.find(filter) != std::string::npos)) continue;
+        for (char& c : name) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+        out.insert(name);
+    }
+    g_pFullFileSystem->FindClose(handle);
+}
+
+std::set<std::string> all_maps() {
+    std::set<std::string> maps;
+    collect_maps("GAME", maps);
+    if (ModInfo().GetFallbackDir()[0]) collect_maps("GAME_FALLBACK", maps);
+    collect_maps("GAMEDOWNLOAD", maps);
+    return maps;
+}
+
+void on_maps(void*, const char*, const char*, const char* frame_url, IBrowserApiReply* reply) {
+    if (!trusted(frame_url)) return reply->Reject(403);
+    std::string list = "[";
+    for (const std::string& m : all_maps()) {
+        if (list.size() > 1) list += ',';
+        list += json_string(m);
+    }
+    list += "]";
+    std::string json = "{\"maps\":" + list + "}";
+    reply->Resolve(json.c_str());
+}
+
+// cvars the page may set on the new server: settings.scr's rules and the CS bot options
+const std::set<std::string> kServerCvars = {
+    "mp_timelimit", "mp_winlimit", "mp_maxrounds", "mp_roundtime", "mp_freezetime", "mp_buytime", "mp_startmoney",
+    "mp_footsteps", "mp_forcecamera", "mp_fadetoblack", "mp_friendlyfire", "mp_tkpunish", "mp_autokick",
+    "mp_hostagepenalty", "mp_flashlight", "mp_autoteambalance", "mp_limitteams",
+    "bot_quota", "bot_difficulty", "bot_join_after_player", "bot_allow_rogues", "bot_allow_pistols", "bot_allow_shotguns",
+    "bot_allow_sub_machine_guns", "bot_allow_machine_guns", "bot_allow_rifles", "bot_allow_snipers", "bot_allow_grenades",
+    "bot_allow_shield", "bot_join_team", "bot_chatter", "bot_defer_to_human"};
+
+// Commands run once the new map is up (server.cfg would override them before): left the old
+// level (or was not in one), entered the new one, and let a few frames pass.
+struct PendingServerSettings {
+    std::string commands;
+    bool left = false;
+    int frames = 0;
+};
+std::optional<PendingServerSettings> g_pending_server;
+
+bool safe_value(const std::string& s) {
+    if (s.size() > 63) return false;
+    for (unsigned char c : s)
+        if (c < ' ' || c == '"' || c == ';' || c == '\\') return false;
+    return true;
+}
+
+// lines "key\tvalue": map, maxplayers, hostname, sv_password and kServerCvars
+void on_start_game(void*, const char*, const char* arg, const char* frame_url, IBrowserApiReply* reply) {
+    if (!trusted(frame_url)) return reply->Reject(403);
+    std::string map, hostname = "Counter-Strike", password;
+    int maxplayers = 16;
+    std::string cvars;
+
+    std::string a = arg ? arg : "";
+    size_t pos = 0;
+    while (pos < a.size()) {
+        size_t end = a.find('\n', pos);
+        if (end == std::string::npos) end = a.size();
+        std::string line = a.substr(pos, end - pos);
+        pos = end + 1;
+        size_t tab = line.find('\t');
+        if (tab == std::string::npos) continue;
+        std::string key = line.substr(0, tab), value = line.substr(tab + 1);
+        if (!safe_value(value)) return reply->Reject(400);
+        if (key == "map") map = value;
+        else if (key == "maxplayers") maxplayers = std::clamp(atoi(value.c_str()), 2, 32);
+        else if (key == "hostname") hostname = value;
+        else if (key == "sv_password") password = value;
+        else if (kServerCvars.count(key)) cvars += key + " \"" + value + "\"\n";
+        else return reply->Reject(400);
+    }
+
+    std::set<std::string> maps = all_maps();
+    if (map.empty() || map == "*") {
+        if (maps.empty()) return reply->Reject(404);
+        auto it = maps.begin();
+        std::advance(it, engine->pfnRandomLong(0, static_cast<int>(maps.size()) - 1));
+        map = *it;
+    } else if (!maps.count(map)) {
+        return reply->Reject(404);
+    }
+
+    std::string cmd = "disconnect\nsv_lan 1\nsetmaster enable\nmaxplayers " + std::to_string(maxplayers) +
+                      "\nsv_password \"" + password + "\"\nhostname \"" + hostname + "\"\n" + cvars +
+                      "cd fadeout\nmap " + map + "\n";
+    engine->pfnClientCmd(const_cast<char*>(cmd.c_str()));
+
+    g_pending_server = PendingServerSettings{cvars + "mp_autoteambalance 0\nmp_limitteams 0\n", !GameUI().IsInLevel(), 0};
+    std::string json = "{\"map\":" + json_string(map) + "}";
+    reply->Resolve(json.c_str());
+}
+
+void run_pending_server_settings() {
+    if (!g_pending_server) return;
+    PendingServerSettings& p = *g_pending_server;
+    bool in_level = GameUI().IsInLevel();
+    if (!p.left) {
+        p.left = !in_level;
+        return;
+    }
+    if (!in_level || ++p.frames < 30) return;
+    engine->pfnClientCmd(const_cast<char*>(p.commands.c_str()));
+    g_pending_server.reset();
+}
+
 // "x y w h move demo" in browser pixels; w 0 hides the weapon preview
 void on_game_preview(void*, const char*, const char* arg, const char* frame_url, IBrowserApiReply* reply) {
     if (!trusted(frame_url)) return reply->Reject(403);
@@ -492,13 +617,15 @@ void BrowserApi_Init() {
     g_api->RegisterMethod("getKeyBindings", &on_key_bindings, nullptr);
     g_api->RegisterMethod("bindKey", &on_bind_key, nullptr);
     g_api->RegisterMethod("setGamePreview", &on_game_preview, nullptr);
+    g_api->RegisterMethod("getMaps", &on_maps, nullptr);
+    g_api->RegisterMethod("startGame", &on_start_game, nullptr);
 }
 
 void BrowserApi_Shutdown() {
     if (!g_api) return;
     for (const char* m : {"getRules", "getFavoriteServers", "getHistoryServers", "getInternetServers",
                           "addFavoriteServer", "removeFavoriteServer", "openOptionsDialog", "gameUiCommand", "openExternal", "getVideoState",
-                          "applyVideo", "getKeyBindings", "bindKey", "setGamePreview"})
+                          "applyVideo", "getKeyBindings", "bindKey", "setGamePreview", "getMaps", "startGame"})
         g_api->UnregisterMethod(m);
     g_api = nullptr;
 }
@@ -508,6 +635,8 @@ void BrowserApi_RunFrame() {
     for (ListQuery* q : g_lists)
         if (q->expired()) expired.push_back(q);
     for (ListQuery* q : expired) q->finish(true);
+
+    run_pending_server_settings();
 
     if (g_api) {
         for (auto& [list, items] : g_batches) {

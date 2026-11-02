@@ -75,6 +75,16 @@ constexpr char kApiScript[] = R"JS((function () {
   nextclient.gameUi.command = function (name) { return callAsync('gameUiCommand', String(name)); };
   // opens an allowed https link (vk.ru, epicentre-cs.ru) in the system browser (trusted pages)
   nextclient.openExternal = function (url) { return callAsync('openExternal', String(url)); };
+  // "New game" (trusted pages): installed maps and a listen server start.
+  // options: {map ('*' random), maxplayers, hostname, sv_password, <mp_*/bot_* cvar>: value}
+  nextclient.game = {
+    getMaps: function () { return callAsync('getMaps'); },
+    start: function (options) {
+      var lines = [];
+      for (var k in options) if (options[k] !== undefined && options[k] !== null) lines.push(k + '\t' + String(options[k]));
+      return callAsync('startGame', lines.join('\n'));
+    }
+  };
   // the menu's own options screen (trusted pages): video modes and key bindings
   nextclient.settings = {
     getVideoState: function () { return callAsync('getVideoState'); },

@@ -240,7 +240,7 @@
     const settings = `<button class="tab${currentTab === 'settings' ? ' active' : ''}" data-tab="settings">Настройки</button>`;
     $('rail').innerHTML = (inGame
       ? b('Resume', '▶ В игру', 'primary') + b('Players', 'Игроки') + b('Disconnect', 'Отключиться', 'danger')
-      : b('NewGame', 'Новая игра')) +
+      : `<button class="tab${currentTab === 'newgame' ? ' active' : ''}" data-tab="newgame">Новая игра</button>`) +
       settings + b('Quit', 'Выход', 'danger');
   }
 
@@ -249,7 +249,8 @@
     currentTab = name;
     document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
     document.querySelectorAll('.page').forEach((p) => p.classList.toggle('active', p.id === 'page-' + name));
-    document.body.classList.toggle('settings-open', name === 'settings');
+    document.body.classList.toggle('fullpage', name === 'settings' || name === 'newgame');
+    if (name === 'newgame' && window.EpicNewGame) window.EpicNewGame.open();
     if (name === 'servers') {
       if (!lists[listKind].size && !loading[listKind]) loadList();
       else renderList();
