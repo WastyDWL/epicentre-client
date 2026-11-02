@@ -230,12 +230,11 @@
   function renderRail() {
     const host = nc ? nc.connectedHost : null;
     const inGame = !!host;
-    const b = (cmd, label, cls = '') => `<button class="${cls}" data-cmd="${cmd}">${label}</button>`;
-    $('rail').innerHTML = inGame
-      ? `<div class="where">Вы на сервере ${esc(host.address)}</div>` +
-        b('Resume', 'Вернуться в игру', 'primary') + b('Players', 'Игроки') + b('Disconnect', 'Отключиться', 'danger') +
-        '<hr>' + b('Options', 'Настройки') + b('Quit', 'Выход', 'danger')
-      : b('NewGame', 'Новая игра') + b('Options', 'Настройки') + b('Quit', 'Выход', 'danger');
+    const b = (cmd, label, cls = '') => `<button class="tab ${cls}" data-cmd="${cmd}">${label}</button>`;
+    $('rail').innerHTML = (inGame
+      ? b('Resume', '▶ В игру', 'primary') + b('Players', 'Игроки') + b('Disconnect', 'Отключиться', 'danger')
+      : b('NewGame', 'Новая игра')) +
+      b('Options', 'Настройки') + b('Quit', 'Выход', 'danger');
   }
 
   // ---- wiring ----

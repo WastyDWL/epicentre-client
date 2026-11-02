@@ -10,8 +10,6 @@
   --blue: #39a7ff;
   --green: #35d07f;
   --radius: 14px;
-  /* room for the action rail bottom-left */
-  --game-menu-w: 240px;
 }
 
 * { box-sizing: border-box; }
@@ -55,7 +53,7 @@ body {
 .profile { margin-left: auto; color: var(--muted); font-size: 13px; }
 .profile b { color: var(--text); }
 
-main { height: calc(100% - 64px); overflow: auto; padding: 26px 28px 26px var(--game-menu-w); }
+main { height: calc(100% - 64px); overflow: auto; padding: 26px 28px; }
 .page { display: none; max-width: 980px; margin: 0 auto; }
 .page.active { display: block; animation: rise .25s ease; }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
@@ -172,19 +170,8 @@ main { height: calc(100% - 64px); overflow: auto; padding: 26px 28px 26px var(--
 .add-fav button { cursor: pointer; border: 0; border-radius: 10px; padding: 0 16px; color: #1b1405; font: 700 12px/1 inherit; background: linear-gradient(135deg, #ffd36a, #ffb020); }
 .add-fav input.bad { border-color: var(--orange-2); }
 
-/* game actions (replace the vgui game menu), bottom-left */
-.rail {
-  position: fixed; left: 28px; bottom: 34px; width: 190px; z-index: 5;
-  display: flex; flex-direction: column; gap: 6px;
-}
-.rail button {
-  text-align: left; cursor: pointer; color: var(--text);
-  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-  padding: 11px 14px; font: 600 14px/1 inherit; letter-spacing: .02em;
-  backdrop-filter: blur(6px); transition: border-color .12s ease, transform .12s ease;
-}
-.rail button:hover { border-color: rgb(255 122 26 / .55); transform: translateX(2px); }
-.rail button.primary { color: #fff; border: 0; background: linear-gradient(135deg, var(--orange), var(--orange-2)); }
-.rail button.danger:hover { border-color: rgb(255 77 46 / .7); }
-.rail hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
-.rail .where { color: var(--muted); font-size: 11px; margin: 0 2px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* game actions (replace the vgui game menu), in the top navigation */
+.tabs-sep { width: 1px; align-self: stretch; margin: 6px 6px; background: var(--line); }
+.tab.primary { color: #fff; background: linear-gradient(135deg, var(--orange), var(--orange-2)); }
+.tab.primary:hover { filter: brightness(1.08); }
+.tab.danger:hover { color: #ff8a73; background: rgb(255 77 46 / .12); }
