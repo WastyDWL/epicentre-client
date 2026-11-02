@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --bg: #0b0e1a;
   --panel: rgb(22 27 44 / .86);
   --panel-2: rgb(30 36 58 / .9);
@@ -10,8 +10,8 @@
   --blue: #39a7ff;
   --green: #35d07f;
   --radius: 14px;
-  /* the game's own menu buttons (New game, Find servers, Options, Quit) sit bottom-left */
-  --game-menu-w: 230px;
+  /* room for the action rail bottom-left */
+  --game-menu-w: 240px;
 }
 
 * { box-sizing: border-box; }
@@ -159,7 +159,6 @@ main { height: calc(100% - 64px); overflow: auto; padding: 26px 28px 26px var(--
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 @media (max-width: 1100px) {
-  :root { --game-menu-w: 28px; }
   .server-hero { grid-template-columns: 220px 1fr; }
 }
 
@@ -172,3 +171,20 @@ main { height: calc(100% - 64px); overflow: auto; padding: 26px 28px 26px var(--
 .add-fav input:focus { border-color: rgb(255 194 74 / .6); }
 .add-fav button { cursor: pointer; border: 0; border-radius: 10px; padding: 0 16px; color: #1b1405; font: 700 12px/1 inherit; background: linear-gradient(135deg, #ffd36a, #ffb020); }
 .add-fav input.bad { border-color: var(--orange-2); }
+
+/* game actions (replace the vgui game menu), bottom-left */
+.rail {
+  position: fixed; left: 28px; bottom: 34px; width: 190px; z-index: 5;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.rail button {
+  text-align: left; cursor: pointer; color: var(--text);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 11px 14px; font: 600 14px/1 inherit; letter-spacing: .02em;
+  backdrop-filter: blur(6px); transition: border-color .12s ease, transform .12s ease;
+}
+.rail button:hover { border-color: rgb(255 122 26 / .55); transform: translateX(2px); }
+.rail button.primary { color: #fff; border: 0; background: linear-gradient(135deg, var(--orange), var(--orange-2)); }
+.rail button.danger:hover { border-color: rgb(255 77 46 / .7); }
+.rail hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+.rail .where { color: var(--muted); font-size: 11px; margin: 0 2px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

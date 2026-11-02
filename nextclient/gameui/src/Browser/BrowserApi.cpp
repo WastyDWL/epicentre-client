@@ -23,6 +23,7 @@ using ncl::IBrowserApiReply;
 
 ncl::IBrowserApi* g_api = nullptr;
 std::string g_options_tab;
+std::string g_menu_command;  // a gameUi.command() to run from GameUI's frame
 
 std::string json_string(const std::string& s) {
     std::string out = "\"";
@@ -210,6 +211,32 @@ void on_favorite(void* add, const char*, const char* arg, const char* frame_url,
     reply->Resolve("true");
 }
 
+// The game menu's commands, for the Epicentre menu page (the vgui game menu is hidden).
+bool known_menu_command(const std::string& c) {
+    return c == "NewGame" || c == "Options" || c == "Players" || c == "Resume" || c == "Disconnect" ||
+           c == "Quit" || c == "QuitNoConfirm" || c == "ServerBrowser";
+}
+
+void on_menu_command(void*, const char*, const char* arg, const char* frame_url, IBrowserApiReply* reply) {
+    if (!trusted(frame_url)) return reply->Reject(403);
+    std::string c = arg ? arg : "";
+    if (!known_menu_command(c)) return reply->Reject(400);
+    g_menu_command = c;
+    reply->Resolve("true");
+}
+
+void run_menu_command(const std::string& c) {
+    CBasePanel* panel = BasePanel();
+    if (c == "NewGame") panel->OnOpenCreateMultiplayerGameDialog();
+    else if (c == "Options") panel->OnOpenOptionsDialog();
+    else if (c == "Players") panel->OnOpenPlayerListDialog();
+    else if (c == "ServerBrowser") panel->OnOpenServerBrowser();
+    else if (c == "Quit") panel->OnOpenQuitConfirmationDialog();
+    else if (c == "QuitNoConfirm") engine->pfnClientCmd("quit\n");
+    else if (c == "Disconnect") engine->pfnClientCmd("disconnect\n");
+    else if (c == "Resume") engine->pfnClientCmd("cancelselect\n");  // as the game menu's ResumeGame
+}
+
 void on_options(void*, const char*, const char* arg, const char* frame_url, IBrowserApiReply* reply) {
     if (!trusted(frame_url)) return reply->Reject(403);
     g_options_tab = arg ? arg : "";
@@ -236,12 +263,13 @@ void BrowserApi_Init() {
     g_api->RegisterMethod("addFavoriteServer", &on_favorite, reinterpret_cast<void*>(1));
     g_api->RegisterMethod("removeFavoriteServer", &on_favorite, nullptr);
     g_api->RegisterMethod("openOptionsDialog", &on_options, nullptr);
+    g_api->RegisterMethod("gameUiCommand", &on_menu_command, nullptr);
 }
 
 void BrowserApi_Shutdown() {
     if (!g_api) return;
     for (const char* m : {"getRules", "getFavoriteServers", "getHistoryServers", "getInternetServers",
-                          "addFavoriteServer", "removeFavoriteServer", "openOptionsDialog"})
+                          "addFavoriteServer", "removeFavoriteServer", "openOptionsDialog", "gameUiCommand"})
         g_api->UnregisterMethod(m);
     g_api = nullptr;
 }
@@ -261,6 +289,12 @@ void BrowserApi_RunFrame() {
         }
     }
     g_batches.clear();
+
+    if (!g_menu_command.empty()) {
+        std::string c;
+        c.swap(g_menu_command);
+        run_menu_command(c);
+    }
 
     if (g_options_tab.empty()) return;
     std::string tab;

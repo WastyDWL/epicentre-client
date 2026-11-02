@@ -167,11 +167,24 @@ public:
 
     virtual void SetVisible(bool state)
     {
-        BaseClass::SetVisible(true);
+        BaseClass::SetVisible(!m_bSuppressed);
 
         if (!state)
             vgui2::ipanel()->MoveToBack(GetVPanel());
     }
+
+    // Epicentre: hidden for good while the menu page (with its own buttons) is shown; the game
+    // menu otherwise refuses to hide and only moves to the back.
+    void SetSuppressed(bool suppressed)
+    {
+        m_bSuppressed = suppressed;
+        BaseClass::SetVisible(!suppressed);
+    }
+
+private:
+    bool m_bSuppressed = false;
+
+public:
 
     virtual int AddMenuItem(const char *itemName, const char *itemText, const char *command, Panel *target, KeyValues *userData = NULL)
     {
@@ -731,13 +744,25 @@ void CBasePanel::CreateToolbar(void)
     m_pToolBar->SetBounds(0, stall - m_iToolBarSize, swide, m_iToolBarSize);
 }
 
+bool CBasePanel::IsMainMenuPageShown() const {
+#ifdef _WIN32
+    return m_pMainMenuBrowser && m_pMainMenuBrowser->IsVisible();
+#else
+    return false;
+#endif
+}
+
 void CBasePanel::CreateMainMenuBrowser() {
 #ifdef _WIN32
     m_pMainMenuBrowser = new CMainMenuBrowser(this);
     m_pMainMenuBrowser->SetFullscreen(true);
 
-    if(m_pMainMenuBrowser->IsVisible())
+    // Epicentre: the menu page has its own buttons (new game, options, quit, in-game actions),
+    // so the vgui game menu stays hidden while the page is shown.
+    if(m_pMainMenuBrowser->IsVisible()) {
         m_pGameMenu->SetParent(m_pMainMenuBrowser);
+        m_pGameMenu->SetSuppressed(true);
+    }
 
     // m_pMainMenuBrowser->OpenURL("file://C:/Users/Vladislav/Desktop/test.html");
 #endif
@@ -754,6 +779,7 @@ void CBasePanel::UpdateGameMenus(void)
 
     // position the menu
     InvalidateLayout();
+    m_pGameMenu->SetSuppressed(IsMainMenuPageShown());
     m_pGameMenu->SetVisible( true );
 }
 

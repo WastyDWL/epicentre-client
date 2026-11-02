@@ -221,11 +221,29 @@
     }, () => {});
   });
 
+  // ---- game actions (the vgui game menu is hidden) ----
+  function gameCommand(name) {
+    if (preview) return toast('gameUi.command(' + name + ')');
+    nc.gameUi.command(name).catch(() => toast('Команда недоступна'));
+  }
+
+  function renderRail() {
+    const host = nc ? nc.connectedHost : null;
+    const inGame = !!host;
+    const b = (cmd, label, cls = '') => `<button class="${cls}" data-cmd="${cmd}">${label}</button>`;
+    $('rail').innerHTML = inGame
+      ? `<div class="where">Вы на сервере ${esc(host.address)}</div>` +
+        b('Resume', 'Вернуться в игру', 'primary') + b('Players', 'Игроки') + b('Disconnect', 'Отключиться', 'danger') +
+        '<hr>' + b('Options', 'Настройки') + b('Quit', 'Выход', 'danger')
+      : b('NewGame', 'Новая игра') + b('Options', 'Настройки') + b('Quit', 'Выход', 'danger');
+  }
+
   // ---- wiring ----
   document.addEventListener('click', (e) => {
     const t = e.target.closest('button, .addr');
     if (!t) return;
     if (t.id === 'connect') connect(SERVER);
+    else if (t.dataset.cmd) gameCommand(t.dataset.cmd);
     else if (t.dataset.connect) connect(t.dataset.connect);
     else if (t.dataset.fav) setFavorite(t.dataset.fav, !favorites.has(t.dataset.fav));
     else if (t.dataset.site) openSite(t.dataset.site);
@@ -262,5 +280,10 @@
   loadList('internet');  // prefetch: the server list is ready by the time the tab is opened
   loadList('favorites');  // also tells which servers get a filled star
   setInterval(refreshHome, 30000);
-  if (nc && nc.gameUi) nc.gameUi.addEventListener('show', refreshHome);
+  renderRail();
+  if (nc && nc.gameUi) nc.gameUi.addEventListener('show', () => {
+    refreshHome();
+    renderRail();
+  });
+  if (nc) ['connect', 'disconnect', 'putinserver'].forEach((ev) => nc.addEventListener(ev, renderRail));
 })();

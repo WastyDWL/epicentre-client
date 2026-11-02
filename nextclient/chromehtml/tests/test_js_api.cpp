@@ -92,3 +92,10 @@ TEST(matchmaking_is_event_target) {
     std::string s = api_script();
     CHECK(s.find("makeAsEventTarget(nextclient.matchmaking)") != std::string::npos);
 }
+
+TEST(gameui_command_exposed) {
+    // The Epicentre menu replaces the vgui game menu: new game, options, quit, in-game actions.
+    std::string s = api_script();
+    CHECK(s.find("nextclient.gameUi.command") != std::string::npos);
+    CHECK(s.find("'gameUiCommand'") != std::string::npos);
+}

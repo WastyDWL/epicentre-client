@@ -165,6 +165,8 @@ public:
     void PositionDialog(Panel *pdlg);
     void CloseBaseDialogs(void);
     bool IsMenuFading(void);
+    // The Epicentre menu page replaces the vgui game menu while it is visible.
+    bool IsMainMenuPageShown() const;
     bool IsInitialLoading(void);
 
 protected:

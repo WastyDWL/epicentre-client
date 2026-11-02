@@ -71,6 +71,8 @@ constexpr char kApiScript[] = R"JS((function () {
   nextclient.gameUi = { optionsDialog: {} };
   Object.defineProperty(nextclient.gameUi, 'shown', { get: function () { return call('gameUiShown') === true; } });
   nextclient.gameUi.optionsDialog.open = function (tab) { if (typeof tab == 'string') call('openOptionsDialog', tab); };
+  // NewGame, Options, Players, ServerBrowser, Resume, Disconnect, Quit, QuitNoConfirm (trusted pages)
+  nextclient.gameUi.command = function (name) { return callAsync('gameUiCommand', String(name)); };
   makeAsEventTarget(nextclient.gameUi);
 
   nextclient.console = {};
