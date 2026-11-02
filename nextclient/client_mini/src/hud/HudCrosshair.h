@@ -37,10 +37,11 @@ public:
     void Init() override;
     void VidInit() override;
 
+    // Normally reached through CHudAmmo::Draw; the CS2 HUD hides that pass and calls it itself.
+    void DrawCrosshair(float flTime, int weaponid);
+
 private:
     int get_center_x() const;
-
-    void DrawCrosshair(float flTime, int weaponid);
     int GetWeaponAccuracyFlags(int iWeaponID);
 
     void CalculateCrosshairSize();

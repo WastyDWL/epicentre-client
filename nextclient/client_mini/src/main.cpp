@@ -35,6 +35,7 @@
 #include "multi_button_binds.h"
 #include "hud/radar/integration/RadarHooks.h"
 #include "hud/radar/render/text/HudTextZone.h"
+#include "hud/cs2/Cs2HudState.h"
 
 nitroapi::NitroApiInterface* g_NitroApi;
 
@@ -148,7 +149,15 @@ static int HUD_RedrawHandler(float flTime, int iIntermission, HUD_RedrawNext nex
         HudTextZone_SetPassthrough(false);
     }
 
+    // The CS2 HUD replaces stock elements: hide them for the stock pass only, so the server's own
+    // HideWeapon bits stay as they are for everything else.
+    int saved_hide = *gHUD->m_iHideHUDDisplay;
+    int stock_hide = g_GameHud->StockHideFlags();
+    *gHUD->m_iHideHUDDisplay |= stock_hide;
+    Cs2HudState_ClipStockAmmo(stock_hide != 0, screen.iWidth, screen.iHeight, *gHUD->m_iFontHeight);
     int result = next->Invoke(flTime, iIntermission);
+    Cs2HudState_ClipStockAmmo(false, 0, 0, 0);
+    *gHUD->m_iHideHUDDisplay = saved_hide;
 
     // Resolve shared text anchors once the stock HUD has supplied every row.
     RadarHooks_FlushText();
@@ -370,6 +379,7 @@ public:
         g_Unsub.emplace_back(client_data->UserMsg_InitHUD += UserMsg_InitHUDPost);
         g_Unsub.emplace_back(client_data->UserMsg_TextMsg |= UserMsg_TextMsgHandler);
         RadarHooks_Subscribe(nitro_api, g_Unsub);
+        Cs2HudState_Subscribe(nitro_api, g_Unsub);
         SayTextWrap_Subscribe(nitro_api, g_Unsub);
         g_Unsub.emplace_back(client_data->UserMsg_ResetHUD |= UserMsg_ResetHUDHandler);
         g_Unsub.emplace_back(client_data->CL_CreateMove |= CL_CreateMoveHandler);

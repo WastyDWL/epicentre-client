@@ -12,6 +12,7 @@
 #include "HudRadarAdvanced.h"
 #include "HudDeathNotice.h"
 #include "hud_sprite/hud_sprite_store.h"
+#include "cs2/HudCs2.h"
 
 class GameHud
 {
@@ -24,6 +25,7 @@ class GameHud
     std::shared_ptr<HudRadarAdvanced> radar_advanced_;
     std::shared_ptr<HudDeathNotice> death_notice_;
     std::shared_ptr<HudAmmo> ammo_;
+    std::shared_ptr<HudCs2> cs2_;
 
     std::vector<std::shared_ptr<HudBase>> all_hud_;
 
@@ -47,6 +49,9 @@ public:
 
     [[nodiscard]] std::shared_ptr<HudSpriteStore> get_sprite_store() const { return sprite_store_; }
     [[nodiscard]] std::shared_ptr<HudDeathNotice> get_deathnotice() const { return death_notice_; }
+
+    // m_iHideHUDDisplay bits the CS2 HUD adds while client.dll draws (its own elements replace those)
+    [[nodiscard]] int StockHideFlags() const { return cs2_->HideFlags(); }
 
 private:
     void FetchCvars();

@@ -1,6 +1,8 @@
 #include "GameHud.h"
 #include <goldsrc/client_api.h>
 
+#include "main.h"
+
 #include "hud/radar/integration/RadarConfig.h"
 #include "hud/radar/integration/RadarDebug.h"
 
@@ -37,6 +39,9 @@ GameHud::GameHud(
 
     ammo_ = std::make_shared<HudAmmo>(nitro_api);
     all_hud_.push_back(ammo_);
+
+    cs2_ = std::make_shared<HudCs2>(nitro_api, performance);
+    all_hud_.push_back(cs2_);
 }
 
 void GameHud::Init()
@@ -55,10 +60,17 @@ void GameHud::VidInit()
 
 void GameHud::Draw(float time)
 {
+    if (cs2_->ShouldDrawCrosshair())
+        crosshair_->DrawCrosshair(time, g_CurrentWeaponId);
+
     for (auto& item : all_hud_) {
         if (item == radar_advanced_)
         {
             continue; // drawn separately via DrawRadar
+        }
+        if (item == health_ && cs2_->IsEnabled())
+        {
+            continue; // the CS2 HUD draws health itself
         }
         item->Draw(time);
     }
