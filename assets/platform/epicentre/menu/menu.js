@@ -83,6 +83,8 @@
   const lists = { internet: new Map(), favorites: new Map(), history: new Map() };
   const loading = { internet: 0, favorites: 0, history: 0 };
   const filters = { notEmpty: false, notFull: false, noPassword: false, noBots: false };
+  const favorites = new Set();  // addresses in Steam favorites (kept in sync with lists.favorites)
+  const ADDRESS = /^(\d{1,3}\.){3}\d{1,3}(:\d{1,5})?$|^[a-z0-9.-]+\.[a-z]{2,}(:\d{1,5})?$/i;
 
   // NextClient lists are [{address, info}] (info null for servers that did not answer);
   // sample data and getServerInfo are flat. Normalise to flat items.
@@ -96,6 +98,7 @@
 
   function merge(kind, items) {
     const map = lists[kind];
+    if (kind === 'favorites') for (const raw of items) if (raw && raw.address) favorites.add(raw.address);
     for (const raw of items) {
       const s = normalize(raw);
       if (!s || !s.address) continue;
@@ -135,6 +138,7 @@
       .filter(passes)
       .filter((s) => !q || [s.hostname, s.map, s.address].some((v) => String(v || '').toLowerCase().includes(q)))
       .sort((a, b) => (b.address === SERVER) - (a.address === SERVER) || (b.playersOnline || 0) - (a.playersOnline || 0));
+    $('add-fav').classList.toggle('show', listKind === 'favorites');
     const busy = loading[listKind] > 0;
     $('refresh').disabled = busy;
     $('count').textContent = all.length
@@ -150,6 +154,8 @@
           <div class="map">${esc(s.map || '—')}</div>
           <div class="pl">${s.offline ? '—' : `<b>${s.playersOnline}</b> / ${s.playersMax}${s.botsOnline ? ` <span class="bots">+${s.botsOnline} бот.</span>` : ''}`}</div>
           ${pingCell(s.offline ? null : s.ping)}
+          <button class="fav${favorites.has(s.address) ? ' on' : ''}" data-fav="${esc(s.address)}"
+            title="${favorites.has(s.address) ? 'Убрать из избранного' : 'Добавить в избранное'}">${favorites.has(s.address) ? '★' : '☆'}</button>
           <button class="go" data-connect="${esc(s.address)}">Играть</button>
         </div>`).join('');
   }
@@ -177,12 +183,51 @@
     });
   }
 
+  async function setFavorite(address, on) {
+    if (on) {
+      favorites.add(address);
+      const known = lists.internet.get(address) || lists.history.get(address);
+      lists.favorites.set(address, known || { address, hostname: address, offline: true });
+    } else {
+      favorites.delete(address);
+      lists.favorites.delete(address);
+    }
+    renderList();
+    toast(on ? 'Добавлено в избранное' : 'Убрано из избранного');
+    if (preview) return;
+    try {
+      await (on ? mm.addFavoriteServer(address) : mm.removeFavoriteServer(address));
+    } catch {
+      toast('Не удалось изменить избранное');
+    }
+  }
+
+  $('add-fav').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = $('add-fav-addr');
+    let addr = input.value.trim();
+    if (!ADDRESS.test(addr)) {
+      input.classList.add('bad');
+      return toast('Введите адрес в виде IP:порт');
+    }
+    if (!/:\d+$/.test(addr)) addr += ':27015';
+    input.classList.remove('bad');
+    input.value = '';
+    setFavorite(addr, true);
+    // ask the server for its details so the row fills in
+    getInfo(addr).then((info) => {
+      if (favorites.has(addr)) lists.favorites.set(addr, { ...info, address: addr, offline: false });
+      renderList();
+    }, () => {});
+  });
+
   // ---- wiring ----
   document.addEventListener('click', (e) => {
     const t = e.target.closest('button, .addr');
     if (!t) return;
     if (t.id === 'connect') connect(SERVER);
     else if (t.dataset.connect) connect(t.dataset.connect);
+    else if (t.dataset.fav) setFavorite(t.dataset.fav, !favorites.has(t.dataset.fav));
     else if (t.dataset.site) openSite(t.dataset.site);
     else if (t.dataset.action === 'site') openSite('/');
     else if (t.classList.contains('addr')) {
@@ -215,6 +260,7 @@
 
   refreshHome();
   loadList('internet');  // prefetch: the server list is ready by the time the tab is opened
+  loadList('favorites');  // also tells which servers get a filled star
   setInterval(refreshHome, 30000);
   if (nc && nc.gameUi) nc.gameUi.addEventListener('show', refreshHome);
 })();

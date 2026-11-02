@@ -74,7 +74,11 @@
       <label><input type="checkbox" data-filter="noBots"> Без ботов</label>
       <span class="count" id="count"></span>
     </div>
-    <div class="list-head"><span>Сервер</span><span>Карта</span><span>Игроки</span><span>Пинг</span><span></span></div>
+    <form class="add-fav" id="add-fav">
+      <input id="add-fav-addr" type="text" placeholder="Добавить сервер в избранное по адресу, например 45.95.31.157:27115" spellcheck="false">
+      <button type="submit">★ Добавить</button>
+    </form>
+    <div class="list-head"><span>Сервер</span><span>Карта</span><span>Игроки</span><span>Пинг</span><span></span><span></span></div>
     <div class="list" id="list"></div>
   </section>
 </main>

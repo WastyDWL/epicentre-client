@@ -126,7 +126,7 @@ main { height: calc(100% - 64px); overflow: auto; padding: 26px 28px 26px var(--
 .chips { display: flex; gap: 6px; }
 .chip { cursor: pointer; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px; font: 600 12px/1 inherit; }
 .chip.active { color: var(--text); border-color: rgb(57 167 255 / .6); background: rgb(57 167 255 / .14); }
-.list-head, .row { display: grid; grid-template-columns: 1fr 140px 110px 60px 100px; gap: 12px; align-items: center; }
+.list-head, .row { display: grid; grid-template-columns: 1fr 140px 110px 60px 40px 100px; gap: 12px; align-items: center; }
 .list-head { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; padding: 0 14px 8px; }
 .list { display: flex; flex-direction: column; gap: 6px; }
 .row { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
@@ -162,3 +162,13 @@ main { height: calc(100% - 64px); overflow: auto; padding: 26px 28px 26px var(--
   :root { --game-menu-w: 28px; }
   .server-hero { grid-template-columns: 220px 1fr; }
 }
+
+.fav { cursor: pointer; border: 1px solid var(--line); background: var(--panel-2); color: var(--muted); border-radius: 8px; height: 34px; font-size: 17px; line-height: 1; }
+.fav:hover { color: #ffc24a; border-color: rgb(255 194 74 / .5); }
+.fav.on { color: #ffc24a; border-color: rgb(255 194 74 / .55); background: rgb(255 194 74 / .1); }
+.add-fav { display: none; gap: 8px; margin: 0 0 12px; }
+.add-fav.show { display: flex; }
+.add-fav input { flex: 1; padding: 10px 12px; border-radius: 10px; color: var(--text); background: var(--panel); border: 1px solid var(--line); font: 13px Consolas, monospace; outline: none; }
+.add-fav input:focus { border-color: rgb(255 194 74 / .6); }
+.add-fav button { cursor: pointer; border: 0; border-radius: 10px; padding: 0 16px; color: #1b1405; font: 700 12px/1 inherit; background: linear-gradient(135deg, #ffd36a, #ffb020); }
+.add-fav input.bad { border-color: var(--orange-2); }
