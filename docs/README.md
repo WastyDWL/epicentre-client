@@ -2,13 +2,13 @@
 
 [Russian version](README.ru.md)
 
-This index connects the maintained project guides, references, test procedures, and module instructions. Start with the [project overview and build instructions](../README.md), the [developer tools panel](tools/developer-panel.md), or the [testing index](testing/README.md).
+This index connects the maintained project guides, references, test procedures, and module instructions. Start with the [project overview and build instructions](../NEXTCLIENT.md), the [developer tools panel](tools/developer-panel.md), or the [testing index](testing/README.md).
 
 ## Development and operator tools
 
 | Document | Purpose |
 |---|---|
-| [Project overview](../README.md) | Features, installation, build presets, and IDE setup. |
+| [Project overview](../NEXTCLIENT.md) | Features, installation, build presets, and IDE setup. |
 | [Developer tools panel](tools/developer-panel.md) | Run repository tools from forms and open their documentation. |
 | [Test server](tools/test-server.md) | Prepare, build, operate, and inspect the dedicated test server. |
 | [Test server compatibility](tools/test-server-compatibility.md) | Supported platforms, components, and limitations. |

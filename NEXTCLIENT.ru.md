@@ -1,4 +1,4 @@
-Язык: [EN](README.md) | RU
+Язык: [EN](NEXTCLIENT.md) | RU
 
 NextClient
 ==========
