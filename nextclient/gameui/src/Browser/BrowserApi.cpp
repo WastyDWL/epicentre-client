@@ -2,14 +2,22 @@
 
 #include <windows.h>
 #include <shellapi.h>
+#include <wincrypt.h>
+#include <winhttp.h>
 
 #include <algorithm>
+#include <cctype>
+#include <cerrno>
 #include <chrono>
+#include <cstdio>
+#include <cstring>
 #include <iterator>
 #include <map>
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
+#include <thread>
 #include <vector>
 
 #include <FileSystem.h>
@@ -26,6 +34,9 @@
 #include "BasePanel.h"
 #include "MainMenuBrowser.h"
 #include "ModInfo.h"
+
+// GameUi.cpp: the game window
+HWND GameUI_MainWindow();
 
 namespace {
 
@@ -264,6 +275,351 @@ void on_open_external(void*, const char*, const char* arg, const char* frame_url
     if (!external_url_allowed(url)) return reply->Reject(400);
     std::wstring wide(url.begin(), url.end());  // ASCII only, checked above
     ShellExecuteW(nullptr, L"open", wide.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    reply->Resolve("true");
+}
+
+// ---- site account: the client API token (api/client on epicentre-cs.ru) ----
+// Kept in the game folder, encrypted for the Windows user (DPAPI). Only the built-in menu reads
+// or writes it: site pages are trusted for other calls but never see the token.
+
+constexpr const char* kAccountFile = "epicentre_account.dat";
+
+bool menu_frame(const char* frame_url) {
+    return frame_url && std::string_view(frame_url).rfind("ncl://menu/", 0) == 0;
+}
+
+bool token_valid(const std::string& token) {
+    if (token.size() != 64) return false;
+    for (char c : token)
+        if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return false;
+    return true;
+}
+
+std::string read_account_token() {
+    FILE* f = fopen(kAccountFile, "rb");
+    if (!f) return {};
+    std::vector<BYTE> data;
+    BYTE buf[512];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0 && data.size() < 8192) data.insert(data.end(), buf, buf + n);
+    fclose(f);
+
+    DATA_BLOB in{static_cast<DWORD>(data.size()), data.data()}, out{};
+    if (data.empty() || !CryptUnprotectData(&in, nullptr, nullptr, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &out))
+        return {};
+    std::string token(reinterpret_cast<char*>(out.pbData), out.cbData);
+    LocalFree(out.pbData);
+    return token_valid(token) ? token : std::string();
+}
+
+bool write_account_token(const std::string& token) {
+    if (token.empty()) return remove(kAccountFile) == 0 || errno == ENOENT;
+    DATA_BLOB in{static_cast<DWORD>(token.size()), reinterpret_cast<BYTE*>(const_cast<char*>(token.data()))}, out{};
+    if (!CryptProtectData(&in, L"Epicentre account", nullptr, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &out))
+        return false;
+    FILE* f = fopen(kAccountFile, "wb");
+    bool ok = f && fwrite(out.pbData, 1, out.cbData, f) == out.cbData;
+    if (f) fclose(f);
+    LocalFree(out.pbData);
+    return ok;
+}
+
+void on_account_token(void*, const char*, const char*, const char* frame_url, IBrowserApiReply* reply) {
+    if (!menu_frame(frame_url)) return reply->Reject(403);
+    std::string token = read_account_token();
+    reply->Resolve(token.empty() ? "null" : json_string(token).c_str());
+}
+
+// The menu page (ncl://) cannot fetch the site itself: Chromium refuses cross-origin requests from
+// the custom scheme. The game makes the request instead (WinHTTP, system proxy) and adds the saved
+// token, so the page never handles it. arg: the form body ("action=me&..."); the answer is
+// {"status": HTTP status (0 when the site was not reached), "body": text, "error": text}.
+constexpr const wchar_t* kSiteHost = L"epicentre-cs.ru";
+constexpr const wchar_t* kSiteApiPath = L"/api/client/";
+
+// One session and connection for the whole run: WinHTTP keeps the TLS connection alive between
+// calls, so only the first request pays for the handshake. Handles are thread-safe and live until exit.
+HINTERNET site_connection() {
+    static HINTERNET connect = [] {
+        HINTERNET session = WinHttpOpen(L"EpicentreClient/1.0", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME,
+                                        WINHTTP_NO_PROXY_BYPASS, 0);
+        if (!session)  // before Windows 8.1 there is no automatic proxy
+            session = WinHttpOpen(L"EpicentreClient/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME,
+                                  WINHTTP_NO_PROXY_BYPASS, 0);
+        return session ? WinHttpConnect(session, kSiteHost, INTERNET_DEFAULT_HTTPS_PORT, 0) : nullptr;
+    }();
+    return connect;
+}
+
+std::string site_post(const std::string& body, int& status, std::string& error) {
+    status = 0;
+    std::string out;
+    HINTERNET connect = site_connection();
+    HINTERNET request = connect ? WinHttpOpenRequest(connect, L"POST", kSiteApiPath, nullptr, WINHTTP_NO_REFERER,
+                                                     WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE)
+                                : nullptr;
+    if (request) {
+        WinHttpSetTimeouts(request, 10000, 10000, 15000, 20000);
+        const wchar_t* headers = L"Content-Type: application/x-www-form-urlencoded\r\n";
+        if (WinHttpSendRequest(request, headers, static_cast<DWORD>(-1L), const_cast<char*>(body.data()),
+                               static_cast<DWORD>(body.size()), static_cast<DWORD>(body.size()), 0) &&
+            WinHttpReceiveResponse(request, nullptr)) {
+            DWORD code = 0, size = sizeof(code);
+            WinHttpQueryHeaders(request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_HEADER_NAME_BY_INDEX,
+                                &code, &size, WINHTTP_NO_HEADER_INDEX);
+            status = static_cast<int>(code);
+            DWORD avail = 0;
+            while (WinHttpQueryDataAvailable(request, &avail) && avail > 0 && out.size() < (4u << 20)) {
+                std::string chunk(avail, '\0');
+                DWORD read = 0;
+                if (!WinHttpReadData(request, chunk.data(), avail, &read) || read == 0) break;
+                out.append(chunk.data(), read);
+            }
+        }
+    }
+    if (status == 0) error = "WinHTTP error " + std::to_string(GetLastError());
+    if (request) WinHttpCloseHandle(request);
+    return out;
+}
+
+void on_site_api(void*, const char*, const char* arg, const char* frame_url, IBrowserApiReply* reply) {
+    if (!menu_frame(frame_url)) return reply->Reject(403);
+    std::string body = arg ? arg : "";
+    if (body.size() > 16384) return reply->Reject(400);
+    // the token goes with every call but sign-in (read here, on the main thread)
+    if (body.rfind("action=login&", 0) != 0) {
+        std::string token = read_account_token();
+        if (!token.empty()) body += "&token=" + token;
+    }
+    std::thread([reply, body = std::move(body)] {
+        int status = 0;
+        std::string error;
+        std::string text = site_post(body, status, error);
+        resolve(reply, "{\"status\":" + std::to_string(status) + ",\"body\":" + json_string(text) +
+                           ",\"error\":" + json_string(error) + "}");
+    }).detach();
+}
+
+// ---- the battle pass mini game, embedded in the menu ----
+// A native Godot build in epicentre_games/xmas (the web build in the menu's browser runs at a
+// fraction of the frame rate). The game starts off screen; once its window shows up it becomes a
+// child of the game window, kept over the rectangle the page keeps free (browser pixels), the way
+// the Godot editor embeds a running game. It closes with the menu or when the page asks.
+constexpr const wchar_t* kXmasGameExe = L"epicentre_games\\xmas\\XmasGame.exe";
+
+struct EmbeddedGame {
+    HANDLE process = nullptr;
+    DWORD pid = 0;
+    HWND wnd = nullptr;
+    bool fg_locked = false;  // LockSetForegroundWindow until the window is embedded
+    int x = 0, y = 0, w = 0, h = 0;  // browser pixels
+    RECT placed{};
+    std::chrono::steady_clock::time_point started, kill_at;
+    bool closing = false;
+} g_game;
+
+HWND find_process_window(DWORD pid) {
+    struct Search {
+        DWORD pid;
+        HWND found;
+    } search{pid, nullptr};
+    EnumWindows(
+        [](HWND wnd, LPARAM param) -> BOOL {
+            auto* s = reinterpret_cast<Search*>(param);
+            DWORD owner = 0;
+            GetWindowThreadProcessId(wnd, &owner);
+            if (owner != s->pid || !IsWindowVisible(wnd)) return TRUE;
+            s->found = wnd;
+            return FALSE;
+        },
+        reinterpret_cast<LPARAM>(&search));
+    return search.found;
+}
+
+// the page's rectangle in the game window's client coordinates
+RECT game_target_rect() {
+    int x = g_game.x, y = g_game.y;
+    CMainMenuBrowser* browser = BasePanel() ? BasePanel()->GetMainMenuBrowser() : nullptr;
+    if (browser) browser->LocalToScreen(x, y);
+    return RECT{x, y, x + g_game.w, y + g_game.h};
+}
+
+void place_game() {
+    if (!g_game.wnd) return;
+    RECT r = game_target_rect();
+    if (EqualRect(&r, &g_game.placed)) return;
+    g_game.placed = r;
+    MoveWindow(g_game.wnd, r.left, r.top, r.right - r.left, r.bottom - r.top, TRUE);
+}
+
+// Input: the CS window keeps the keyboard focus (SDL minimizes a full-screen game whose window
+// loses it), so the embedded window is disabled and gets nothing from the system. The page takes
+// the keys and the mouse over its stage and forwards them (gameInput), posted to the game window.
+void unlock_foreground() {
+    if (!g_game.fg_locked) return;
+    LockSetForegroundWindow(LSFW_UNLOCK);
+    g_game.fg_locked = false;
+}
+
+// back to a clean state after the process ended
+void reset_game() {
+    unlock_foreground();
+    if (g_game.process) CloseHandle(g_game.process);
+    g_game = EmbeddedGame{};
+}
+
+void embed_game(HWND wnd) {
+    g_game.wnd = wnd;
+    LONG_PTR style = GetWindowLongPtrW(wnd, GWL_STYLE);
+    style &= ~static_cast<LONG_PTR>(WS_POPUP | WS_CAPTION | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
+    SetWindowLongPtrW(wnd, GWL_STYLE, style | WS_CHILD | WS_CLIPSIBLINGS | WS_DISABLED);
+    SetParent(wnd, GameUI_MainWindow());
+    g_game.placed = RECT{};
+    place_game();
+    ShowWindow(wnd, SW_SHOWNOACTIVATE);
+    unlock_foreground();
+}
+
+void close_game() {
+    if (!g_game.process || g_game.closing) return;
+    g_game.closing = true;
+    g_game.kill_at = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    if (g_game.wnd) PostMessageW(g_game.wnd, WM_CLOSE, 0, 0);
+}
+
+// RunFrame: embed the window once it exists, follow the rectangle, clean up after exit
+void run_game_frame() {
+    if (!g_game.process) return;
+    auto now = std::chrono::steady_clock::now();
+    if (WaitForSingleObject(g_game.process, 0) == WAIT_OBJECT_0 ||
+        (g_game.closing && now >= g_game.kill_at && TerminateProcess(g_game.process, 0))) {
+        reset_game();
+        return;
+    }
+    if (g_game.closing) return;
+    // the menu went away (back to the match): the game goes with it
+    if (!BasePanel() || !BasePanel()->IsVisible()) return close_game();
+    if (!g_game.wnd) {
+        if (HWND wnd = find_process_window(g_game.pid)) embed_game(wnd);
+        else if (now - g_game.started > std::chrono::seconds(30)) close_game();
+        if (now - g_game.started > std::chrono::seconds(10)) unlock_foreground();
+        return;
+    }
+    place_game();
+}
+
+bool parse_rect(const char* text, int& x, int& y, int& w, int& h) {
+    return text && sscanf(text, "%d %d %d %d", &x, &y, &w, &h) == 4 && w > 0 && h > 0 && w < 16384 && h < 16384;
+}
+
+// arg: "<game token>\t<login, URI-encoded>\t<x y w h>"; the token comes from the site (api/client
+// game_token) and only opens runs, the top and ticket purchases. Rejects 404 when the build is not
+// installed, so the menu falls back to the site's page.
+void on_launch_game(void*, const char*, const char* arg, const char* frame_url, IBrowserApiReply* reply) {
+    if (!menu_frame(frame_url)) return reply->Reject(403);
+    std::string a = arg ? arg : "";
+    size_t t1 = a.find('\t'), t2 = t1 == std::string::npos ? t1 : a.find('\t', t1 + 1);
+    if (t2 == std::string::npos) return reply->Reject(400);
+    std::string token = a.substr(0, t1), login = a.substr(t1 + 1, t2 - t1 - 1);
+    int x, y, w, h;
+    if (!token_valid(token) || login.size() > 192 || !parse_rect(a.c_str() + t2 + 1, x, y, w, h))
+        return reply->Reject(400);
+    for (unsigned char c : login)  // URI-encoded: nothing to quote on the command line
+        if (!isalnum(c) && !strchr("%-._~", c)) return reply->Reject(400);
+
+    if (g_game.process && !g_game.closing) {  // one game at a time: "Play" again brings it back
+        g_game.x = x, g_game.y = y, g_game.w = w, g_game.h = h;
+        place_game();
+        return reply->Resolve("true");
+    }
+
+    wchar_t dir[MAX_PATH];
+    DWORD n = GetCurrentDirectoryW(MAX_PATH, dir);
+    if (n == 0 || n >= MAX_PATH) return reply->Reject(500);
+    std::wstring exe = std::wstring(dir) + L"\\" + kXmasGameExe;
+    if (GetFileAttributesW(exe.c_str()) == INVALID_FILE_ATTRIBUTES) return reply->Reject(404);
+    std::wstring work = exe.substr(0, exe.find_last_of(L'\\'));
+
+    // off screen until it is embedded, already at its size
+    std::string args = " --position -32000,-32000 --resolution " + std::to_string(w) + "x" + std::to_string(h) +
+                       " -- --epic-token=" + token + " --epic-login=" + login;
+    std::wstring cmd = L"\"" + exe + L"\"" + std::wstring(args.begin(), args.end());  // ASCII, checked above
+    if (g_game.process) {  // the previous one is still closing
+        TerminateProcess(g_game.process, 0);
+        reset_game();
+    }
+    // The game's window must not take the foreground: CS in full screen minimizes when it loses it.
+    // The lock holds until the window is embedded (a child never becomes the foreground window).
+    bool fg_locked = LockSetForegroundWindow(LSFW_LOCK) != FALSE;
+    STARTUPINFOW si{sizeof(si)};
+    si.dwFlags = STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_SHOWNOACTIVATE;
+    PROCESS_INFORMATION pi{};
+    if (!CreateProcessW(exe.c_str(), cmd.data(), nullptr, nullptr, FALSE, 0, nullptr, work.c_str(), &si, &pi)) {
+        if (fg_locked) LockSetForegroundWindow(LSFW_UNLOCK);
+        return reply->Reject(500);
+    }
+    CloseHandle(pi.hThread);
+    g_game = EmbeddedGame{};
+    g_game.fg_locked = fg_locked;
+    g_game.process = pi.hProcess;
+    g_game.pid = pi.dwProcessId;
+    g_game.x = x, g_game.y = y, g_game.w = w, g_game.h = h;
+    g_game.started = std::chrono::steady_clock::now();
+    reply->Resolve("true");
+}
+
+// arg: "x y w h" in browser pixels (the page resized)
+void on_set_game_rect(void*, const char*, const char* arg, const char* frame_url, IBrowserApiReply* reply) {
+    if (!menu_frame(frame_url)) return reply->Reject(403);
+    int x, y, w, h;
+    if (!parse_rect(arg, x, y, w, h)) return reply->Reject(400);
+    g_game.x = x, g_game.y = y, g_game.w = w, g_game.h = h;
+    place_game();
+    reply->Resolve("true");
+}
+
+// arg: "k <down 0|1> <virtual key> <repeat 0|1>" or "m <WM_ mouse message> <x> <y> <MK_ flags>"
+// (x, y in device pixels of the game's area)
+void on_game_input(void*, const char*, const char* arg, const char* frame_url, IBrowserApiReply* reply) {
+    if (!menu_frame(frame_url)) return reply->Reject(403);
+    if (!g_game.wnd || g_game.closing) return reply->Resolve("false");
+    char kind = 0;
+    int a = 0, b = 0, c = 0, d = 0;
+    int n = arg ? sscanf(arg, "%c %d %d %d %d", &kind, &a, &b, &c, &d) : 0;
+    if (kind == 'k' && n >= 4 && b > 0 && b < 256) {
+        UINT scan = MapVirtualKeyW(static_cast<UINT>(b), MAPVK_VK_TO_VSC);
+        bool extended = b == VK_LEFT || b == VK_RIGHT || b == VK_UP || b == VK_DOWN || b == VK_INSERT ||
+                        b == VK_DELETE || b == VK_HOME || b == VK_END || b == VK_PRIOR || b == VK_NEXT;
+        LPARAM lp = 1 | (static_cast<LPARAM>(scan) << 16) | (extended ? (1 << 24) : 0);
+        if (!a) lp |= 0xC0000000;          // key up: previous state down, transition
+        else if (c) lp |= 0x40000000;      // auto-repeat: previously down
+        PostMessageW(g_game.wnd, a ? WM_KEYDOWN : WM_KEYUP, static_cast<WPARAM>(b), lp);
+    } else if (kind == 'm' && n == 5 && (a == WM_MOUSEMOVE || (a >= WM_LBUTTONDOWN && a <= WM_MBUTTONUP))) {
+        PostMessageW(g_game.wnd, static_cast<UINT>(a), static_cast<WPARAM>(d), MAKELPARAM(b, c));
+    } else {
+        return reply->Reject(400);
+    }
+    reply->Resolve("true");
+}
+
+void on_close_game(void*, const char*, const char*, const char* frame_url, IBrowserApiReply* reply) {
+    if (!menu_frame(frame_url)) return reply->Reject(403);
+    close_game();
+    reply->Resolve("true");
+}
+
+void on_game_running(void*, const char*, const char*, const char* frame_url, IBrowserApiReply* reply) {
+    if (!menu_frame(frame_url)) return reply->Reject(403);
+    reply->Resolve(g_game.process && !g_game.closing ? "true" : "false");
+}
+
+// arg: the new token, or empty to sign out
+void on_set_account_token(void*, const char*, const char* arg, const char* frame_url, IBrowserApiReply* reply) {
+    if (!menu_frame(frame_url)) return reply->Reject(403);
+    std::string token = arg ? arg : "";
+    if (!token.empty() && !token_valid(token)) return reply->Reject(400);
+    if (!write_account_token(token)) return reply->Reject(500);
     reply->Resolve("true");
 }
 
@@ -619,18 +975,28 @@ void BrowserApi_Init() {
     g_api->RegisterMethod("setGamePreview", &on_game_preview, nullptr);
     g_api->RegisterMethod("getMaps", &on_maps, nullptr);
     g_api->RegisterMethod("startGame", &on_start_game, nullptr);
+    g_api->RegisterMethod("getAccountToken", &on_account_token, nullptr);
+    g_api->RegisterMethod("setAccountToken", &on_set_account_token, nullptr);
+    g_api->RegisterMethod("siteApi", &on_site_api, nullptr);
+    g_api->RegisterMethod("launchGame", &on_launch_game, nullptr);
+    g_api->RegisterMethod("setGameRect", &on_set_game_rect, nullptr);
+    g_api->RegisterMethod("closeGame", &on_close_game, nullptr);
+    g_api->RegisterMethod("gameInput", &on_game_input, nullptr);
+    g_api->RegisterMethod("gameRunning", &on_game_running, nullptr);
 }
 
 void BrowserApi_Shutdown() {
+    if (g_game.process) TerminateProcess(g_game.process, 0);
     if (!g_api) return;
     for (const char* m : {"getRules", "getFavoriteServers", "getHistoryServers", "getInternetServers",
                           "addFavoriteServer", "removeFavoriteServer", "openOptionsDialog", "gameUiCommand", "openExternal", "getVideoState",
-                          "applyVideo", "getKeyBindings", "bindKey", "setGamePreview", "getMaps", "startGame"})
+                          "applyVideo", "getKeyBindings", "bindKey", "setGamePreview", "getMaps", "startGame", "getAccountToken", "setAccountToken", "siteApi", "launchGame", "setGameRect", "closeGame", "gameRunning", "gameInput"})
         g_api->UnregisterMethod(m);
     g_api = nullptr;
 }
 
 void BrowserApi_RunFrame() {
+    run_game_frame();
     std::vector<ListQuery*> expired;
     for (ListQuery* q : g_lists)
         if (q->expired()) expired.push_back(q);

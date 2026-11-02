@@ -6,6 +6,7 @@
 <link rel="stylesheet" href="menu.css">
 <link rel="stylesheet" href="settings.css">
 <link rel="stylesheet" href="newgame.css">
+<link rel="stylesheet" href="pass.css">
 </head>
 <body>
 <div class="backdrop"></div>
@@ -21,6 +22,7 @@
   <nav class="tabs" role="tablist">
     <button class="tab active" data-tab="home">Главная</button>
     <button class="tab" data-tab="servers">Серверы</button>
+    <button class="tab" data-tab="pass">Батлпасс ❄</button>
     <button class="tab" data-action="site">Сайт ↗</button>
     <button class="tab" data-external="https://vk.ru/arenatira">ВК ↗</button>
     <span class="tabs-sep"></span>
@@ -88,11 +90,14 @@
     <div class="list" id="list"></div>
   </section>
 
+  <section class="page pass" id="page-pass"></section>
   <section class="page settings fullpage" id="page-settings"></section>
   <section class="page newgame fullpage" id="page-newgame"></section>
 </main>
 
 <div class="toast" id="toast"></div>
+<script src="account.js"></script>
+<script src="pass.js"></script>
 <script src="settings.js"></script>
 <script src="newgame.js"></script>
 <script src="menu.js"></script>

@@ -1,0 +1,125 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" uid="uid://dqsqtkl1at1bg" path="res://game/run.gd" id="1"]
+[ext_resource type="PackedScene" path="res://game/Player.tscn" id="2"]
+[ext_resource type="Texture2D" uid="uid://cmsw51s72brqx" path="res://assets/ui/snow_particle.png" id="3"]
+[ext_resource type="AudioStream" uid="uid://d2xc4dtte45wk" path="res://assets/jingle-bells-violin-main-8644.mp3" id="4"]
+[ext_resource type="AudioStream" uid="uid://bqkbnuqlr462h" path="res://assets/Simple Coin 006.wav" id="5"]
+[ext_resource type="AudioStream" uid="uid://bt4civrrohls" path="res://assets/Collect-item-sound-effect/Collect-item-sound-effect.mp3" id="6"]
+[ext_resource type="AudioStream" uid="uid://blyyhvlrsecdu" path="res://assets/sfx_hit.wav" id="7"]
+
+[sub_resource type="ProceduralSkyMaterial" id="Sky_mat"]
+sky_top_color = Color(0.02, 0.035, 0.09, 1)
+sky_horizon_color = Color(0.16, 0.22, 0.4, 1)
+ground_bottom_color = Color(0.05, 0.07, 0.14, 1)
+ground_horizon_color = Color(0.16, 0.22, 0.4, 1)
+sun_angle_max = 10.0
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("Sky_mat")
+
+[sub_resource type="Environment" id="Env_1"]
+background_mode = 2
+sky = SubResource("Sky_1")
+ambient_light_source = 3
+ambient_light_color = Color(0.55, 0.63, 0.88, 1)
+ambient_light_energy = 0.8
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.45
+glow_bloom = 0.05
+glow_hdr_threshold = 1.2
+fog_enabled = true
+fog_light_color = Color(0.16, 0.22, 0.4, 1)
+fog_density = 0.012
+
+[sub_resource type="StandardMaterial3D" id="Flake_mat"]
+transparency = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+albedo_texture = ExtResource("3")
+billboard_mode = 3
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+
+[sub_resource type="QuadMesh" id="Flake_mesh"]
+material = SubResource("Flake_mat")
+size = Vector2(0.12, 0.12)
+
+[sub_resource type="PlaneMesh" id="Field_mesh"]
+size = Vector2(260, 120)
+
+[sub_resource type="StandardMaterial3D" id="Field_mat"]
+albedo_color = Color(0.6, 0.68, 0.85, 1)
+roughness = 0.9
+
+[node name="Run" type="Node3D" unique_id=976343419]
+script = ExtResource("1")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=750053272]
+environment = SubResource("Env_1")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1751311088]
+transform = Transform3D(0.865426, 0.450303, -0.219693, 0, 0.438477, 0.898743, 0.501036, -0.777796, 0.379469, 0, 10, 0)
+light_color = Color(0.82, 0.88, 1, 1)
+light_energy = 0.95
+shadow_enabled = true
+shadow_bias = 0.03
+shadow_normal_bias = 1.2
+shadow_opacity = 0.7
+shadow_blur = 1.6
+directional_shadow_mode = 0
+directional_shadow_max_distance = 32.0
+
+[node name="Level" type="Node3D" parent="." unique_id=1455835457]
+
+[node name="Entities" type="Node3D" parent="." unique_id=717683976]
+
+[node name="Decor" type="Node3D" parent="." unique_id=1542737392]
+
+[node name="Player" parent="." unique_id=1247497483 instance=ExtResource("2")]
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1494489263]
+transform = Transform3D(1, 0, 0, 0, 0.994522, 0.104528, 0, -0.104528, 0.994522, 8, 2.4, 11)
+fov = 50.0
+far = 220.0
+
+[node name="Snow" type="CPUParticles3D" parent="Camera3D" unique_id=1975782468]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9, -12)
+amount = 260
+lifetime = 4.0
+preprocess = 4.0
+mesh = SubResource("Flake_mesh")
+emission_shape = 3
+emission_box_extents = Vector3(24, 1, 12)
+direction = Vector3(-0.3, -1, 0)
+spread = 15.0
+gravity = Vector3(0, -1.5, 0)
+initial_velocity_min = 2.0
+initial_velocity_max = 4.0
+scale_amount_min = 0.6
+scale_amount_max = 1.6
+
+[node name="Field" type="MeshInstance3D" parent="." unique_id=412535608]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.5, -45)
+cast_shadow = 0
+mesh = SubResource("Field_mesh")
+surface_material_override/0 = SubResource("Field_mat")
+
+[node name="Music" type="AudioStreamPlayer" parent="." unique_id=284576618]
+process_mode = 3
+stream = ExtResource("4")
+volume_db = -15.0
+
+[node name="SfxGift" type="AudioStreamPlayer" parent="." unique_id=1819302275]
+stream = ExtResource("5")
+volume_db = -6.0
+
+[node name="SfxKill" type="AudioStreamPlayer" parent="." unique_id=2085852287]
+stream = ExtResource("6")
+volume_db = -8.0
+
+[node name="SfxHit" type="AudioStreamPlayer" parent="." unique_id=78475119]
+stream = ExtResource("7")
+volume_db = -4.0

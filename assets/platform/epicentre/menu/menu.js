@@ -25,6 +25,8 @@
 
   function openSite(path) {
     // The site forbids framing, so it opens in this view; the client adds a "back to menu" button.
+    // Signed in to the site account, the page opens signed in too (account.js, SSO).
+    if (window.EpicAccount) return window.EpicAccount.openSite(path || '/');
     location.href = SITE + (path || '/');
   }
 
@@ -251,6 +253,10 @@
     document.querySelectorAll('.page').forEach((p) => p.classList.toggle('active', p.id === 'page-' + name));
     document.body.classList.toggle('fullpage', name === 'settings' || name === 'newgame');
     if (name === 'newgame' && window.EpicNewGame) window.EpicNewGame.open();
+    if (window.EpicPass) {
+      if (name === 'pass') window.EpicPass.open();
+      else window.EpicPass.leave(); // the embedded game closes with its tab
+    }
     if (name === 'servers') {
       if (!lists[listKind].size && !loading[listKind]) loadList();
       else renderList();
@@ -292,14 +298,14 @@
       renderList();
     }));
 
-  const name = nc ? nc.getCvarValue('name') : 'Игрок';
-  if (name) $('profile').innerHTML = 'Вы играете как <b>' + esc(name) + '</b>';
-
   refreshHome();
   loadList('internet');  // prefetch: the server list is ready by the time the tab is opened
   loadList('favorites');  // also tells which servers get a filled star
   setInterval(refreshHome, 30000);
   renderRail();
+  // ncl://menu/index.html#pass opens straight on a tab
+  const startTab = location.hash.slice(1);
+  if (document.getElementById('page-' + startTab)) showTab(startTab);
   if (nc && nc.gameUi) nc.gameUi.addEventListener('show', () => {
     refreshHome();
     renderRail();

@@ -1,0 +1,50 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" uid="uid://cgbasdp4hj1n4" path="res://game/player.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://foatssl7ludb" path="res://assets/models/santa.glb" id="2"]
+[ext_resource type="Script" uid="uid://f3d0so1co6yt" path="res://game/santa_rig.gd" id="3"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_santa"]
+radius = 0.35
+height = 1.5
+
+[sub_resource type="Gradient" id="Puff_grad"]
+colors = PackedColorArray(1, 1, 1, 0.9, 1, 1, 1, 0)
+
+[node name="Player" type="CharacterBody3D" unique_id=710220277 groups=["player"]]
+axis_lock_linear_z = true
+floor_snap_length = 0.2
+script = ExtResource("1")
+
+[node name="Collision" type="CollisionShape3D" parent="." unique_id=1071035953]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+shape = SubResource("CapsuleShape3D_santa")
+
+[node name="Visual" type="Node3D" parent="." unique_id=1165048059]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.2)
+
+[node name="Santa" parent="Visual" unique_id=354871032 instance=ExtResource("2")]
+script = ExtResource("3")
+
+[node name="HeroLight" type="OmniLight3D" parent="." unique_id=1903681938]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2, 1.8, 3.6)
+light_color = Color(1, 0.86, 0.72, 1)
+light_energy = 1.4
+omni_range = 6.5
+omni_attenuation = 1.2
+
+[node name="Puff" type="CPUParticles3D" parent="." unique_id=1197869242]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 1.2)
+emitting = false
+amount = 10
+lifetime = 0.45
+one_shot = true
+explosiveness = 0.95
+direction = Vector3(0, 1, 0)
+spread = 80.0
+gravity = Vector3(0, -4, 0)
+initial_velocity_min = 1.0
+initial_velocity_max = 2.4
+scale_amount_min = 0.08
+scale_amount_max = 0.16
+color_ramp = SubResource("Puff_grad")

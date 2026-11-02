@@ -1,0 +1,23 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" uid="uid://qi0wyow7tnjj" path="res://LeaderBoardStat.gd" id="1"]
+
+[node name="LeaderBoardStat" type="VBoxContainer" unique_id=2073856858]
+custom_minimum_size = Vector2(120, 0)
+theme_override_constants/separation = 0
+script = ExtResource("1")
+
+[node name="StatLabel" type="Label" parent="." unique_id=1692456514]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.913725, 0, 1)
+theme_override_constants/outline_size = 0
+theme_override_font_sizes/font_size = 18
+text = "Label"
+horizontal_alignment = 1
+
+[node name="StatValue" type="Label" parent="." unique_id=1157630144]
+layout_mode = 2
+theme_override_constants/outline_size = 0
+theme_override_font_sizes/font_size = 26
+text = "0"
+horizontal_alignment = 1

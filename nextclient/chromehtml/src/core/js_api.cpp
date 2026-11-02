@@ -62,6 +62,11 @@ constexpr char kApiScript[] = R"JS((function () {
       return target.dispatchEvent(new CustomEvent(type, { detail: params, cancelable: true }));
     };
   };
+  // a page box (CSS pixels) as "x y w h" in device pixels
+  function rectArg(rect) {
+    var k = window.devicePixelRatio || 1;
+    return [rect.left, rect.top, rect.width, rect.height].map(function (v) { return Math.round(v * k); }).join(' ');
+  }
   var nextclient = window.nextclient = { __ncb: true };
   nextclient.exec = function (cmd) { if (typeof cmd == 'string') return call('exec', cmd); };
   nextclient.getCvarValue = function (name) { return call('getCvarValue', name); };
@@ -84,6 +89,23 @@ constexpr char kApiScript[] = R"JS((function () {
       for (var k in options) if (options[k] !== undefined && options[k] !== null) lines.push(k + '\t' + String(options[k]));
       return callAsync('startGame', lines.join('\n'));
     }
+  };
+  // the site account (built-in menu only): the client API token, stored encrypted by the game
+  nextclient.account = {
+    getToken: function () { return callAsync('getAccountToken'); },
+    setToken: function (token) { return callAsync('setAccountToken', token ? String(token) : ''); },
+    // POST to the site's client API, sent by the game with the saved token: {status, body, error}
+    request: function (form) { return callAsync('siteApi', String(form)); },
+    // the native battle pass game (game token from api/client game_token), embedded over rect:
+    // a DOMRect-like box in CSS pixels of this page
+    launchGame: function (token, login, rect) {
+      return callAsync('launchGame', String(token) + '\t' + encodeURIComponent(String(login || '')) + '\t' + rectArg(rect));
+    },
+    setGameRect: function (rect) { return callAsync('setGameRect', rectArg(rect)); },
+    closeGame: function () { return callAsync('closeGame'); },
+    gameRunning: function () { return callAsync('gameRunning'); },
+    // input for the game ("k down vk repeat" / "m message x y flags"): it never takes the focus
+    gameInput: function (line) { return callAsync('gameInput', String(line)); }
   };
   // the menu's own options screen (trusted pages): video modes and key bindings
   nextclient.settings = {
