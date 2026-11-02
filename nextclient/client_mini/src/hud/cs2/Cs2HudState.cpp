@@ -202,18 +202,23 @@ Cs2HudState& Cs2State()
 
 namespace
 {
-    vgui2::VPANEL FindVisibleScoreboard(vgui2::IPanel& panels, vgui2::VPANEL panel)
+    vgui2::VPANEL FindVisiblePanel(vgui2::IPanel& panels, vgui2::VPANEL panel, const char* name)
     {
         if (!panel || !panels.IsVisible(panel))
             return 0;
-        if (std::strcmp(panels.GetName(panel), "ClientScoreBoard") == 0)
+        if (_stricmp(panels.GetName(panel), name) == 0)
             return panel;
         for (int i = 0, n = panels.GetChildCount(panel); i < n; i++)
         {
-            if (vgui2::VPANEL found = FindVisibleScoreboard(panels, panels.GetChild(panel, i)))
+            if (vgui2::VPANEL found = FindVisiblePanel(panels, panels.GetChild(panel, i), name))
                 return found;
         }
         return 0;
+    }
+
+    vgui2::VPANEL FindVisibleScoreboard(vgui2::IPanel& panels, vgui2::VPANEL panel)
+    {
+        return FindVisiblePanel(panels, panel, "ClientScoreBoard");
     }
 } // namespace
 
@@ -267,6 +272,14 @@ void Cs2HudState_SyncStockScoreboard()
         return;
 
     vgui2::VPANEL root = static_cast<vgui2::ISurface*>(*surface)->GetEmbeddedPanel();
+
+    // the stock spectator bars cover the bottom of the screen, where the CS2 spectator panel sits
+    for (int i = 0, n = panels->GetChildCount(root); i < n; i++)
+    {
+        if (vgui2::VPANEL spec = FindVisiblePanel(*panels, panels->GetChild(root, i), "specgui"))
+            panels->SetVisible(spec, false);
+    }
+
     for (int i = 0, n = panels->GetChildCount(root); i < n; i++)
     {
         if (vgui2::VPANEL board = FindVisibleScoreboard(*panels, panels->GetChild(root, i)))

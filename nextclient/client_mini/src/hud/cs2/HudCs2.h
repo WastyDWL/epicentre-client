@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+#include <string>
 #include <vector>
 
 #include <goldsrc/cvar.h>
@@ -63,6 +65,25 @@ private:
     void DrawEmblem(float cx, float h, float s);
     void DrawTopBar(float cx, float s);
     void DrawScoreboard(float w, float h, float s); // HudCs2Scoreboard.cpp
+
+    // HudCs2Players.cpp: the players in the two teams, the top bar's avatars and the spectator panel
+    struct PlayerView
+    {
+        int index;
+        uint64_t steam_id;
+        std::string name;
+        int team;
+        bool dead;
+        int frags;
+        int deaths;
+        int health; // 0 when the client is not told
+        bool bomb;
+    };
+    std::vector<PlayerView> CollectPlayers();
+    // left_edge / right_edge: where the T avatars end and the CT avatars start; false with no players
+    bool DrawTopAvatars(const std::vector<PlayerView>& players, float left_edge, float right_edge, float top, float height, float s);
+    void DrawSpectatorPanel(float w, float h, float s);
+    unsigned int AvatarOf(uint64_t steam_id);
     // corner colours: top-left, top-right, bottom-right, bottom-left
     void DrawGradient(float x0, float y0, float x1, float y1, ncl_math::Color tl, ncl_math::Color tr, ncl_math::Color br, ncl_math::Color bl);
 

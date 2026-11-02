@@ -149,6 +149,10 @@ void HudCs2::Draw(float time)
         if (!(m_iHideHUDDisplay & HIDEHUD_MONEY))
             DrawMoney(h, s);
     }
+    else
+    {
+        DrawSpectatorPanel(w, h, s);
+    }
     draw_.EndPrims();
     draw_.EndFrame();
 
@@ -397,10 +401,26 @@ void HudCs2::DrawTopBar(float cx, float s)
     std::snprintf(buf, sizeof(buf), "%d", st.score_ct);
     text_.Draw(buf, {cx + half + side * 0.5f + 1 * s, top + 8 * s}, score_px, true, kTeamCT, Cs2Text::Align::Center);
 
-    // team logos outside the score boxes
-    float logo = 40 * s, ly = top + (height - logo) * 0.5f;
-    Icon("logo_tr", cx - half - side - logo - 6 * s, ly, logo, logo, {255, 255, 255, 240});
-    Icon("logo_ct", cx + half + side + 6 * s, ly, logo, logo, {255, 255, 255, 240});
+    // the players' avatars outside the score boxes (CS2), the team logos while nobody is in a team
+    std::vector<PlayerView> players = CollectPlayers();
+    int alive_t = 0, alive_ct = 0;
+    for (const PlayerView& p : players)
+    {
+        if (!p.dead)
+            (p.team == goldsrc::cstrike::TEAM_TERRORIST ? alive_t : alive_ct)++;
+    }
+    if (!DrawTopAvatars(players, cx - half - side - 6 * s, cx + half + side + 6 * s, top, height, s))
+    {
+        float logo = 40 * s, ly = top + (height - logo) * 0.5f;
+        Icon("logo_tr", cx - half - side - logo - 6 * s, ly, logo, logo, {255, 255, 255, 240});
+        Icon("logo_ct", cx + half + side + 6 * s, ly, logo, logo, {255, 255, 255, 240});
+    }
+    else
+    {
+        // "3 vs 5" under the clock, as in CS2
+        std::snprintf(buf, sizeof(buf), "%d vs %d", alive_t, alive_ct);
+        label_.Draw(buf, {cx, top + height + 4 * s}, Px(15 * s), true, WithAlpha(kInk, 210), Cs2Text::Align::Center);
+    }
 
     // the clock
     draw_.DrawRect({cx - half, top}, {cx + half, top + height}, {0, 0, 0, 170});
