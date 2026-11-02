@@ -86,6 +86,7 @@ constexpr char kApiScript[] = R"JS((function () {
     addFavoriteServer: function (ip) { return callAsync('addFavoriteServer', ip); },
     removeFavoriteServer: function (ip) { return callAsync('removeFavoriteServer', ip); }
   };
+  makeAsEventTarget(nextclient.matchmaking);
 })();)JS";
 
 // Floating "back to menu" button for sites opened from the main menu (the site forbids framing,

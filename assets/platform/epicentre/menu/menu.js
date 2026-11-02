@@ -78,7 +78,10 @@
 
   // ---- servers ----
   let listKind = 'internet';
-  let listCache = [];
+  // Per list: address -> server. Filled while a query runs (nextclient.matchmaking 'servers'
+  // batches) and completed by the query's final answer.
+  const lists = { internet: new Map(), favorites: new Map(), history: new Map() };
+  const loading = { internet: 0, favorites: 0, history: 0 };
   const filters = { notEmpty: false, notFull: false, noPassword: false, noBots: false };
 
   // NextClient lists are [{address, info}] (info null for servers that did not answer);
@@ -89,6 +92,26 @@
       return { ...i, address: item.address, offline: !item.info };
     }
     return item;
+  }
+
+  function merge(kind, items) {
+    const map = lists[kind];
+    for (const raw of items) {
+      const s = normalize(raw);
+      if (!s || !s.address) continue;
+      const old = map.get(s.address);
+      if (!old || old.offline || !s.offline) map.set(s.address, s);
+    }
+  }
+
+  let renderQueued = false;
+  function scheduleRender() {
+    if (renderQueued) return;
+    renderQueued = true;
+    requestAnimationFrame(() => {
+      renderQueued = false;
+      renderList();
+    });
   }
 
   function passes(s) {
@@ -106,40 +129,52 @@
   }
 
   function renderList() {
+    const all = [...lists[listKind].values()];
     const q = $('search').value.trim().toLowerCase();
-    const rows = listCache
+    const rows = all
       .filter(passes)
       .filter((s) => !q || [s.hostname, s.map, s.address].some((v) => String(v || '').toLowerCase().includes(q)))
       .sort((a, b) => (b.address === SERVER) - (a.address === SERVER) || (b.playersOnline || 0) - (a.playersOnline || 0));
-    $('count').textContent = listCache.length ? `Показано ${rows.length} из ${listCache.length}` : '';
-    $('list').innerHTML = rows.length
-      ? rows.map((s) => `
+    const busy = loading[listKind] > 0;
+    $('refresh').disabled = busy;
+    $('count').textContent = all.length
+      ? `Показано ${rows.length} из ${all.length}${busy ? ' · загрузка…' : ''}`
+      : '';
+    if (!rows.length) {
+      $('list').innerHTML = `<div class="empty">${busy ? 'Загрузка списка…' : all.length ? 'Под фильтры ничего не подходит' : 'Серверы не найдены'}</div>`;
+      return;
+    }
+    $('list').innerHTML = rows.map((s) => `
         <div class="row${s.address === SERVER ? ' ours' : ''}${s.offline ? ' offline' : ''}">
           <div><div class="name">${esc(s.offline ? 'Сервер не отвечает' : s.hostname)}</div><div class="sub">${esc(s.address)}</div></div>
           <div class="map">${esc(s.map || '—')}</div>
           <div class="pl">${s.offline ? '—' : `<b>${s.playersOnline}</b> / ${s.playersMax}${s.botsOnline ? ` <span class="bots">+${s.botsOnline} бот.</span>` : ''}`}</div>
           ${pingCell(s.offline ? null : s.ping)}
           <button class="go" data-connect="${esc(s.address)}">Играть</button>
-        </div>`).join('')
-      : `<div class="empty">${listCache.length ? 'Под фильтры ничего не подходит' : 'Серверы не найдены'}</div>`;
+        </div>`).join('');
   }
 
-  let loadToken = 0;
-  async function loadList() {
-    const token = ++loadToken;
-    $('refresh').disabled = true;
-    $('list').innerHTML = '<div class="empty">Загрузка списка…</div>';
-    $('count').textContent = '';
-    let items = [];
+  async function loadList(kind = listKind) {
+    if (loading[kind]) return;
+    loading[kind]++;
+    lists[kind].clear();
+    if (kind === listKind) renderList();
     try {
-      items = (await getList(listKind)).map(normalize);
+      merge(kind, await getList(kind));
     } catch {
-      items = [];
+      // keep whatever arrived as batches
     }
-    if (token !== loadToken) return;  // a newer refresh started meanwhile
-    listCache = items;
-    $('refresh').disabled = false;
-    renderList();
+    loading[kind]--;
+    if (kind === listKind) renderList();
+  }
+
+  if (mm && mm.addEventListener) {
+    mm.addEventListener('servers', (e) => {
+      const d = e.detail || {};
+      if (!lists[d.list] || !Array.isArray(d.items)) return;
+      merge(d.list, d.items);
+      if (d.list === listKind) scheduleRender();
+    });
   }
 
   // ---- wiring ----
@@ -156,15 +191,19 @@
     } else if (t.dataset.tab) {
       document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b === t));
       document.querySelectorAll('.page').forEach((p) => p.classList.toggle('active', p.id === 'page-' + t.dataset.tab));
-      if (t.dataset.tab === 'servers' && !listCache.length) loadList();
+      if (t.dataset.tab === 'servers') {
+        if (!lists[listKind].size && !loading[listKind]) loadList();
+        else renderList();
+      }
     } else if (t.dataset.list) {
       listKind = t.dataset.list;
       document.querySelectorAll('.chip').forEach((b) => b.classList.toggle('active', b === t));
-      loadList();
+      if (!lists[listKind].size && !loading[listKind]) loadList();
+      else renderList();
     }
   });
   $('search').addEventListener('input', renderList);
-  $('refresh').addEventListener('click', loadList);
+  $('refresh').addEventListener('click', () => loadList());
   document.querySelectorAll('[data-filter]').forEach((box) =>
     box.addEventListener('change', () => {
       filters[box.dataset.filter] = box.checked;
@@ -175,6 +214,7 @@
   if (name) $('profile').innerHTML = 'Вы играете как <b>' + esc(name) + '</b>';
 
   refreshHome();
+  loadList('internet');  // prefetch: the server list is ready by the time the tab is opened
   setInterval(refreshHome, 30000);
   if (nc && nc.gameUi) nc.gameUi.addEventListener('show', refreshHome);
 })();

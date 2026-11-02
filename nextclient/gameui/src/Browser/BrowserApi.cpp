@@ -102,6 +102,18 @@ enum class ListKind { Favorites, History, Internet };
 class ListQuery;
 std::set<ListQuery*> g_lists;  // running list queries, for the deadline check in BrowserApi_RunFrame
 
+const char* list_name(ListKind kind) {
+    switch (kind) {
+        case ListKind::Favorites: return "favorites";
+        case ListKind::History: return "history";
+        default: return "internet";
+    }
+}
+
+// Servers that answered since the last frame, per list: streamed to pages as
+// nextclient.matchmaking 'servers' events so lists fill in while the query runs.
+std::map<std::string, std::vector<std::string>> g_batches;
+
 // Answers with the servers that responded so far once the deadline passes: pinging a whole master
 // list takes much longer than a menu should wait.
 constexpr auto kListDeadline = std::chrono::milliseconds(3500);
@@ -157,8 +169,10 @@ private:
         if (!responded && kind_ == ListKind::Internet) return;
         gameserveritem_t* s = SteamMatchmakingServers()->GetServerDetails(request, index);
         if (!s) return;
-        servers_[index] = "{\"address\":" + json_string(s->m_NetAdr.GetConnectionAddressString()) +
-                          ",\"info\":" + (responded ? server_json(*s) : std::string("null")) + "}";
+        std::string item = "{\"address\":" + json_string(s->m_NetAdr.GetConnectionAddressString()) +
+                           ",\"info\":" + (responded ? server_json(*s) : std::string("null")) + "}";
+        if (responded && !done_) g_batches[list_name(kind_)].push_back(item);
+        servers_[index] = std::move(item);
     }
     IBrowserApiReply* reply_;
     const ListKind kind_;
@@ -237,6 +251,16 @@ void BrowserApi_RunFrame() {
     for (ListQuery* q : g_lists)
         if (q->expired()) expired.push_back(q);
     for (ListQuery* q : expired) q->finish(true);
+
+    if (g_api) {
+        for (auto& [list, items] : g_batches) {
+            if (items.empty()) continue;
+            std::string detail = "{\"list\":\"" + list + "\",\"items\":[";
+            for (size_t i = 0; i < items.size(); ++i) detail += (i ? "," : "") + items[i];
+            g_api->DispatchEvent("nextclient.matchmaking", "servers", (detail + "]}").c_str());
+        }
+    }
+    g_batches.clear();
 
     if (g_options_tab.empty()) return;
     std::string tab;

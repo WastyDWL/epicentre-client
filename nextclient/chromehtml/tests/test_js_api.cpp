@@ -86,3 +86,9 @@ TEST(fit_width_refits_on_resize) {
     CHECK(s.find("addEventListener('resize'") != std::string::npos);
     CHECK(s.find("style.zoom = ''") != std::string::npos);  // re-measured at natural size
 }
+
+TEST(matchmaking_is_event_target) {
+    // GameUI streams server batches as nextclient.matchmaking 'servers' events.
+    std::string s = api_script();
+    CHECK(s.find("makeAsEventTarget(nextclient.matchmaking)") != std::string::npos);
+}
