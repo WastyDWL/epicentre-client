@@ -54,7 +54,7 @@ int Cs2Text::ResolveFont(int px, bool bold)
         return kInvalidTextFont;
 
     // the bundled StratumNo2 (CS2's HUD digits) when present, else Windows' Bahnschrift
-    const char* bundled = Cs2Art::NumberFace();
+    const char* bundled = numbers_ ? Cs2Art::NumberFace() : nullptr;
 
     TextFontDesc desc{};
     desc.face = bundled ? bundled : "Bahnschrift";
@@ -91,6 +91,24 @@ float Cs2Text::Measure(const char* utf8, int px, bool bold)
             pen += glyph->advance;
     }
     return pen;
+}
+
+std::string Cs2Text::Fit(const char* utf8, int px, bool bold, float max_w)
+{
+    if (Measure(utf8, px, bold) <= max_w)
+        return utf8;
+
+    std::string out;
+    for (const char* cursor = utf8; *cursor;)
+    {
+        const char* start = cursor;
+        NextCodepoint(cursor);
+        std::string next = out + std::string(start, cursor);
+        if (Measure((next + "...").c_str(), px, bold) > max_w)
+            break;
+        out = next;
+    }
+    return out + "...";
 }
 
 float Cs2Text::Draw(const char* utf8, ncl_math::Vector2 pos, int px, bool bold, ncl_math::Color color, Align align)

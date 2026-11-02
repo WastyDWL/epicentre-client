@@ -80,6 +80,7 @@ add_library(${PROJECT_NAME} SHARED
         src/hud/cs2/Cs2Text.cpp
         src/hud/cs2/Cs2Text.h
         src/hud/cs2/HudCs2.cpp
+        src/hud/cs2/HudCs2Scoreboard.cpp
         src/hud/cs2/HudCs2.h
         src/hud/HudRadar.cpp
         src/hud/HudRadar.h
@@ -240,6 +241,9 @@ if (MSVC)
             /EHsc # NEVER catch SEH exceptions; c functions cannot throw exceptions
     )
 
+    # the scoreboard's Russian captions are UTF-8 literals; the SDK headers it includes carry
+    # Windows-1252 bytes in comments, hence C4828 off for this file only
+    set_source_files_properties(src/hud/cs2/HudCs2Scoreboard.cpp PROPERTIES COMPILE_OPTIONS "/utf-8;/wd4828")
 endif ()
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE

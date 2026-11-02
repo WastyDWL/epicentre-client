@@ -23,6 +23,13 @@ struct Cs2HudState
     int score_ct = 0;
     float round_end = 0.0f;  // client time the round clock reaches zero (RoundTime)
     bool bomb_planted = false;
+
+    // scoreboard: money per player index (Account, sent for teammates) and whether Tab is held
+    std::array<int, 33> account{};
+    std::array<bool, 33> has_account{};
+    bool scoreboard_held = false;
+    char server_name[64]{};     // ServerName, sent on connect
+    bool scoreboard_own = false; // the CS2 HUD is on: +showscores opens ours, not client.dll's
     bool taps_active = false; // client.dll's handlers were wrapped (CLDLL_Initialize came after us)
 
     int Reserve() const
@@ -38,6 +45,10 @@ Cs2HudState& Cs2State();
 
 // While on, the engine 2D draws of the stock ammo corner are dropped (client.dll's table is wrapped
 // in CLDLL_Initialize, so this only touches what client.dll itself draws).
+// Swaps client.dll's scoreboard for the CS2 one: hides the stock panel once it is shown and marks
+// ours open. Called every HUD frame.
+void Cs2HudState_SyncStockScoreboard();
+
 void Cs2HudState_ClipStockAmmo(bool on, int screen_w, int screen_h, int font_h);
 
 // Wraps client.dll's handlers of Battery, ArmorType, Money, WeaponList and TeamScore: the

@@ -15,7 +15,8 @@
 class HudCs2 : public HudBase, public HudBaseHelper
 {
     RadarDrawContext draw_;
-    Cs2Text text_;
+    Cs2Text text_;   // digits: StratumNo2
+    Cs2Text label_;  // names and captions: Bahnschrift (Cyrillic)
     Cs2Art art_;
     goldsrc::cvar_t* enabled_cvar_{};
     goldsrc::cvar_t* crosshair_cvar_{};
@@ -26,6 +27,7 @@ public:
     void Init() override;
     void VidInit() override;
     void Draw(float time) override;
+    void Think(float time) override;
 
     bool IsEnabled() const;
 
@@ -43,6 +45,8 @@ private:
     void DrawMoney(float h, float s);
     void DrawEmblem(float cx, float h, float s);
     void DrawTopBar(float cx, float s);
+    void DrawScoreboard(float w, float h, float s); // HudCs2Scoreboard.cpp
+    void DrawFade(float x0, float y0, float x1, float y1, ncl_math::Color from, ncl_math::Color to);
 
     // Draws one art piece when the HUD folder has it; false lets the caller draw its fallback.
     bool Icon(const char* name, float x, float y, float w, float h, ncl_math::Color tint);

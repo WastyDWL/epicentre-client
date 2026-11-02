@@ -45,7 +45,8 @@ namespace
 HudCs2::HudCs2(nitroapi::NitroApiInterface* nitro_api, radar::integration::Performance& performance) :
     HudBaseHelper(nitro_api),
     draw_(performance),
-    text_(draw_)
+    text_(draw_, true),
+    label_(draw_, false)
 {
 }
 
@@ -60,6 +61,13 @@ void HudCs2::VidInit()
     // a video restart may bring a new GL context: the programs and fonts are re-made on demand
     draw_.ResetGl(false);
     text_.Reset();
+    label_.Reset();
+}
+
+void HudCs2::Think(float time)
+{
+    // decides, at the next +showscores, whether Tab opens this board or client.dll's
+    Cs2State().scoreboard_own = IsEnabled();
 }
 
 bool HudCs2::IsEnabled() const
@@ -99,6 +107,7 @@ bool HudCs2::PrepareGraphics()
     {
         draw_.ResetGl(false);
         text_.Reset();
+        label_.Reset();
         art_.Reset();
         draw_.Prepare(context, nullptr);
     }
@@ -138,6 +147,10 @@ void HudCs2::Draw(float time)
     }
     draw_.EndPrims();
     draw_.EndFrame();
+
+    Cs2HudState_SyncStockScoreboard();
+    if (Cs2State().scoreboard_held)
+        DrawScoreboard(w, h, s);
 }
 
 void HudCs2::DrawBackdrop(float w, float h, float s)
