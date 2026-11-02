@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cstring>
 
+#include "common/log.h"
+
 namespace nc {
 
 void FrameBuffer::store(const void* bgra, int w, int h) {
@@ -43,6 +45,11 @@ void FrameBuffer::hide_popup() {
 
 void FrameBuffer::deliver_if_ready(const DeliverFn& deliver) {
     std::unique_lock lock(mutex_);
+    auto now = std::chrono::steady_clock::now();
+    if (in_flight_ && dirty_ && now - sent_at_ > kAckTimeout) {
+        log("frame not acknowledged in %d ms, sending the newest one", static_cast<int>(kAckTimeout.count()));
+        in_flight_ = false;
+    }
     if (!dirty_ || in_flight_ || view_.empty()) return;
     // out_ is a snapshot owned by the main thread, so `deliver` runs without the lock: the game
     // answers NeedsPaintResponse from inside BrowserNeedsPaint, and CEF may paint meanwhile.
@@ -57,6 +64,7 @@ void FrameBuffer::deliver_if_ready(const DeliverFn& deliver) {
     }
     dirty_ = false;
     in_flight_ = true;
+    sent_at_ = now;
     const int w = w_, h = h_;
     lock.unlock();
     deliver(0, w, h, reinterpret_cast<const unsigned char*>(out_.data()));

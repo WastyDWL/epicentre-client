@@ -2,6 +2,7 @@
 // NeedsPaint/NeedsPaintResponse handshake with the game: one frame in flight at a time.
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <mutex>
@@ -35,6 +36,10 @@ private:
     bool popup_visible_ = false;
     bool dirty_ = false;
     bool in_flight_ = false;  // a frame was handed to the game and not acknowledged yet
+    // A hidden vgui2::HTML (the MOTD before it opens) may never acknowledge a frame; after this
+    // long the frame counts as lost and the newest one goes out, or the panel keeps a stale image.
+    std::chrono::steady_clock::time_point sent_at_{};
+    static constexpr std::chrono::milliseconds kAckTimeout{250};
 };
 
 }  // namespace nc
